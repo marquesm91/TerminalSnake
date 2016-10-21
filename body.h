@@ -25,20 +25,28 @@ class Body{
 
 public:
 
+	bool gameOver;
+
 	Body() {
 
 		b = new list<Point>(); // Create a empty list of Points
 		
 		tam = 0; // Snake don't have size yet
 
+		gameOver = false;
 		// Start snake with head position (3,1)
 		this->grow(Point(1,1));
 		this->grow(Point(2,1));
 		this->grow(Point(3,1));
+		this->grow(Point(4,1));
+		this->grow(Point(5,1));
+		this->grow(Point(6,1));
+		this->grow(Point(7,1));
+		this->grow(Point(8,1));
 
-		food.setX(10);
-		food.setY(10);
-		mvprintw(10,10,"f");
+		food.getFood();
+		mvprintw(food.getX(),food.getY(),"f");
+		//hashtable.emplace(to_string(food.getX() + food.getY()), "f");
 
 	}
 
@@ -68,12 +76,20 @@ public:
 		s += " ,";
 		s += to_string(head.getY());
 		s += ")";
+
+		string a = "(" + to_string(food.getX());
+		a += " ,";
+		a += to_string(food.getY());
+		a += ")";
+
 		mvprintw(0, 0, intToString(tam));
 		mvprintw(0, 5, s.c_str());
 		mvprintw(0, 35, intToString(COLS));
 		mvprintw(0, 30, intToString(LINES));
+
+		mvprintw(0, 56, a.c_str());
   		
-  		refresh();
+  	refresh();
 	}
 
 	void print_message(const Point &p, char const *str) {
@@ -86,23 +102,38 @@ public:
 		
 		Point head = b->front();
 		Point tail = b->back();
+		Point newHead;
 
 		switch (direction) {
-			case UP: 	b->push_front(Point(head.getX() - 1, head.getY())); break;
-			case DOWN: 	b->push_front(Point(head.getX() + 1, head.getY())); break;
-			case RIGHT: b->push_front(Point(head.getX(), head.getY() + 1)); break;
-			case LEFT: 	b->push_front(Point(head.getX(), head.getY() - 1)); break;
+			case UP: 		newHead.setX(head.getX() - 1); newHead.setY(head.getY()); break;
+			case DOWN: 	newHead.setX(head.getX() + 1); newHead.setY(head.getY()); break; 
+			case RIGHT: newHead.setX(head.getX()); newHead.setY(head.getY() + 1); break;
+			case LEFT: 	newHead.setX(head.getX()); newHead.setY(head.getY() - 1); break;
+		}	
+		
+		if (tryToMove(newHead)) {
+			b->push_front(newHead);
+			mvprintw(newHead.getX(), newHead.getY(), "@");
+		} else {
+			this->gameOver = true;
+			return;
 		}
-
-		Point newHead = b->front();
-		mvprintw(newHead.getX(), newHead.getY(), "@");
-		mvprintw(tail.getX(), tail.getY(), " ");
 		
 		if(newHead != food){
 			b->pop_back();
 		} else {
 			tam++;
+			food.getFood();
+			mvprintw(food.getX(),food.getY(),"f");
 		}
+
+		mvprintw(tail.getX(), tail.getY(), " ");
+	}
+
+	bool tryToMove(Point head) {
+
+		char ch = mvinch(head.getX(), head.getY()) & A_CHARTEXT;
+		return ch != '@';
 	}
 
 };

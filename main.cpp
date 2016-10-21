@@ -10,15 +10,17 @@ volatile sig_atomic_t interruptFlag = 0; // catch Ctrl + C event
 void interruptFunction(int sig){
   
 	interruptFlag = 1;	// set flag
-	endwin();			// exit NCurses		
+	endwin();			// exit NCurses
 }
 
 void initializeNCurses(){
 
 	initscr();				// Start curses mode
+	//WINDOW win = newwin(COLS,LINES,0,0);
 	start_color();			// Start the color functionality
 	cbreak();				// Line buffering disabled
 	use_default_colors();	// Use background color default
+	timeout(-1);
 	curs_set(0);			// hide cursor console
 	keypad(stdscr, TRUE);	// For Arrow Keys
 	noecho();				// Disable echo() in getch()
@@ -43,7 +45,7 @@ int main()
 	char key_stroke = DOWN;
 	char disable_move = UP;
 
-	while(!interruptFlag) {
+	while(!interruptFlag && !(body->gameOver)) {
 	
 		body->print();
 	
@@ -63,6 +65,7 @@ int main()
 		usleep(twenty_milliseconds);
 	}
 
+	endwin();
 	delete body;
 }
 
