@@ -22,8 +22,8 @@ public:
     return (this->x != p.getX() || this->y != p.getY()) ? true : false;
   }
 
-  bool operator==(const Point& p) { 
-    return (this->x == p.getX() && this->y == p.getY()) ? true : false;
+  bool operator==(const Point p) { 
+    return (x == p.getX() && y == p.getY()) ? true : false;
   }
   
   int getX() const { return x; }
@@ -34,14 +34,14 @@ public:
   void getFood() {
     
     mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
-    uniform_int_distribution<int> xValue(1,LINES-1); // guaranteed unbiased
-    uniform_int_distribution<int> yValue(0,COLS-1); // guaranteed unbiased
+    uniform_int_distribution<int> xValue(2,LINES-2); // guaranteed unbiased
+    uniform_int_distribution<int> yValue(1,COLS-2); // guaranteed unbiased
 
-    auto randomX = xValue(rng);
-    auto randomY = yValue(rng);
+    auto x = xValue(rng);
+    auto y = yValue(rng);
 
-    this->x = randomX;
-    this->y = randomY;
+    this->x = x;
+    this->y = y;
     //return Point(randomX, randomY);
   }
 

@@ -15,13 +15,16 @@
 // Use default color when init_curses
 #define COLOR_DEFAULT -1
 
+int delay = 35000; // 50 ms
+const int initialSnakeSize = 3;
+
 using namespace std;
 
 class Body{
 
 	list<Point> *b;
+	Point *food;
 	unsigned tam;
-	Point food;
 
 public:
 
@@ -31,23 +34,28 @@ public:
 
 		b = new list<Point>(); // Create a empty list of Points
 		
-		tam = 0; // Snake don't have size yet
+		food = new Point();
+		food->getFood();
+		mvprintw(food->getX(), food->getY(),"f");
 
+		// Start snake with head position (5,7)
+		b->push_front(Point(5,5));
+		b->push_front(Point(5,6));
+		b->push_front(Point(5,7));
+
+		tam = initialSnakeSize;
 		gameOver = false;
-		// Start snake with head position (3,1)
-		this->grow(Point(1,1));
-		this->grow(Point(2,1));
-		this->grow(Point(3,1));
-		this->grow(Point(4,1));
-		this->grow(Point(5,1));
-		this->grow(Point(6,1));
-		this->grow(Point(7,1));
-		this->grow(Point(8,1));
+		
+		// print Score, Size and Food initial position
+		mvprintw(0, 7, to_string((tam - initialSnakeSize) * delay / 1000).c_str());
+		mvprintw(0, 19, to_string(tam).c_str());
+		string x = food->getX() >= 10 ? to_string(food->getX()) : to_string(food->getX()) + " ";
+		string y = food->getY() >= 10 ? to_string(food->getY()) : to_string(food->getY()) + " ";
+		mvprintw(0, 49, x.c_str());
+		mvprintw(0, 52, y.c_str());
+		
 
-		food.getFood();
-		mvprintw(food.getX(),food.getY(),"f");
-		//hashtable.emplace(to_string(food.getX() + food.getY()), "f");
-
+		refresh();
 	}
 
 	~Body() {
@@ -55,85 +63,71 @@ public:
 		if(!b->empty())
 			b->clear();
 		delete b;
+		delete food;
 	}
 
-	void grow(const Point &p) {
-	
-		b->push_front(p);
-		tam++;
-	}
+	void updateScore() {
+		
+		this->tam++;
 
-	const char * intToString(int n) {
+		// print Score
+		mvprintw(0, 7, to_string((tam - initialSnakeSize) * delay / 1000).c_str());
+		
+		// print Size
+		mvprintw(0, 19, to_string(this->tam).c_str());
+		
+		// Generate new Food
+		food->getFood();
+		mvprintw(food->getX(), food->getY(), "f");
 
-		return to_string(n).c_str();
-	}
-
-	void print() {
-
-		Point head = b->front();
-
-		string s = "(" + to_string(head.getX());
-		s += " ,";
-		s += to_string(head.getY());
-		s += ")";
-
-		string a = "(" + to_string(food.getX());
-		a += " ,";
-		a += to_string(food.getY());
-		a += ")";
-
-		mvprintw(0, 0, intToString(tam));
-		mvprintw(0, 5, s.c_str());
-		mvprintw(0, 35, intToString(COLS));
-		mvprintw(0, 30, intToString(LINES));
-
-		mvprintw(0, 56, a.c_str());
-  		
-  	refresh();
-	}
-
-	void print_message(const Point &p, char const *str) {
-
-		mvprintw(p.getX(), p.getY(), str);
-		refresh();
+		// print Food position
+		string x = food->getX() >= 10 ? to_string(food->getX()) : to_string(food->getX()) + " ";
+		string y = food->getY() >= 10 ? to_string(food->getY()) : to_string(food->getY()) + " ";
+		mvprintw(0, 49, x.c_str());
+		mvprintw(0, 52, y.c_str());
 	}
 
 	void move(int direction) {
 		
 		Point head = b->front();
-		Point tail = b->back();
 		Point newHead;
 
 		switch (direction) {
-			case UP: 		newHead.setX(head.getX() - 1); newHead.setY(head.getY()); break;
+			case UP: 	newHead.setX(head.getX() - 1); newHead.setY(head.getY()); break;
 			case DOWN: 	newHead.setX(head.getX() + 1); newHead.setY(head.getY()); break; 
 			case RIGHT: newHead.setX(head.getX()); newHead.setY(head.getY() + 1); break;
 			case LEFT: 	newHead.setX(head.getX()); newHead.setY(head.getY() - 1); break;
 		}	
 		
-		if (tryToMove(newHead)) {
-			b->push_front(newHead);
-			mvprintw(newHead.getX(), newHead.getY(), "@");
-		} else {
-			this->gameOver = true;
-			return;
-		}
-		
-		if(newHead != food){
-			b->pop_back();
-		} else {
-			tam++;
-			food.getFood();
-			mvprintw(food.getX(),food.getY(),"f");
-		}
-
-		mvprintw(tail.getX(), tail.getY(), " ");
+		if (findObstacle(newHead))
+			gameOver = true;
+		else
+			refresh();
 	}
 
-	bool tryToMove(Point head) {
+	bool findObstacle(Point newHead) {
 
-		char ch = mvinch(head.getX(), head.getY()) & A_CHARTEXT;
-		return ch != '@';
+		char ch = mvinch(newHead.getX(), newHead.getY()) & A_CHARTEXT;
+		Point tail = b->back();
+
+		if (ch == 'f')
+			updateScore();
+		else if (ch == '@' || ch == '-' || ch == '|')
+			return true;
+		else {
+			b->pop_back();
+			mvprintw(tail.getX(), tail.getY(), " ");
+		}
+
+		b->push_front(newHead);
+		mvprintw(newHead.getX(), newHead.getY(), "@");
+
+		string x = newHead.getX() >= 10 ? to_string(newHead.getX()) : to_string(newHead.getX()) + " ";
+		string y = newHead.getY() >= 10 ? to_string(newHead.getY()) : to_string(newHead.getY()) + " ";
+		mvprintw(0, 33, x.c_str());
+		mvprintw(0, 36, y.c_str());
+
+		return false;
 	}
 
 };

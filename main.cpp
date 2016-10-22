@@ -3,24 +3,22 @@
 #include <unistd.h>
 #include "body.h"
 
-const unsigned int twenty_milliseconds = 50000; // 50 ms
-
 volatile sig_atomic_t interruptFlag = 0; // catch Ctrl + C event
 
-void interruptFunction(int sig){
+void interruptFunction(int sig) {
   
 	interruptFlag = 1;	// set flag
 	endwin();			// exit NCurses
 }
 
-void initializeNCurses(){
+void initializeGame() {
 
 	initscr();				// Start curses mode
 	//WINDOW win = newwin(COLS,LINES,0,0);
 	start_color();			// Start the color functionality
 	cbreak();				// Line buffering disabled
 	use_default_colors();	// Use background color default
-	timeout(-1);
+	//timeout(5000);
 	curs_set(0);			// hide cursor console
 	keypad(stdscr, TRUE);	// For Arrow Keys
 	noecho();				// Disable echo() in getch()
@@ -34,20 +32,42 @@ void initializeNCurses(){
 	init_pair(5, COLOR_MAGENTA, COLOR_DEFAULT); // 16 and 2048(bold)
 	init_pair(6, COLOR_RED, COLOR_DEFAULT); 	// 32 and 4096(bold)
 	init_pair(7, COLOR_BLUE, COLOR_DEFAULT); 	// 64 and 8192(bold)
+
+	// Set up board
+	mvprintw(0,0, "SCORE: ");
+	mvprintw(0, 13, "SIZE: ");
+	mvprintw(0, 25, "H.POS: (");
+	mvprintw(0, 35, ",");
+	mvprintw(0, 38, ")  F.POS: (");
+	mvprintw(0, 51, ",");
+	mvprintw(0, 54, ")");
+	mvprintw(0, 60, "HIGHSCORE: ");
+
+	for(int i = 1; i < LINES - 1; i++){
+		mvprintw(i, 0, "|"); mvprintw(i, COLS - 1, "|");	
+	}
+
+	for(int j = 1; j < COLS - 1; j++){
+		mvprintw(1, j, "-"); mvprintw(LINES - 1, j, "-");
+	}
+
+	mvprintw(1,0,"+");
+	mvprintw(1,COLS - 1,"+");
+	mvprintw(LINES - 1,0,"+");
+	mvprintw(LINES - 1, COLS - 1,"+");
+	refresh();
 }
 
 int main()
 {
-	initializeNCurses();
+	initializeGame();
 	Body *body = new Body();
 	signal(SIGINT, interruptFunction); 
 
-	char key_stroke = DOWN;
-	char disable_move = UP;
+	char key_stroke = RIGHT;
+	char disable_move = LEFT;
 
 	while(!interruptFlag && !(body->gameOver)) {
-	
-		body->print();
 	
 		char aux = getch();
 
@@ -62,35 +82,9 @@ int main()
 		}
 
 		//ungetch(aux);
-		usleep(twenty_milliseconds);
+		usleep(delay);
 	}
 
 	endwin();
 	delete body;
 }
-
-/*int main(int argc, char *argv[]) {
-	int parent_x, parent_y, new_x, new_y; int score_size = 3;
-	// ...
-	draw_borders(field);
-	draw_borders(score);
-	while(1) { 
-		getmaxyx(stdscr, new_y, new_x); 
-		if (new_y != parent_y || new_x != parent_x) { 
-			parent_x = new_x; parent_y = new_y; 
-			wresize(field, new_y - score_size, new_x);
-			wresize(score, score_size, new_x);
-			mvwin(score, new_y - score_size, 0);
-			wclear(stdscr);
-			wclear(field);
-			wclear(score); 
-			draw_borders(field);
-			draw_borders(score); 
-		} // draw to our windows
-		mvwprintw(field, 1, 1, "Field");
-		mvwprintw(score, 1, 1, "Score");
-		// refresh each window
-		wrefresh(field);
-		wrefresh(score);
-	} // ...
-}*/
