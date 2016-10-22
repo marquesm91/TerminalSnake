@@ -8,7 +8,7 @@ To be written...
 
 ## Layout Screen
 
-<img src="https://drive.google.com/open?id=0B9hG8_OBtDp2THFOMmE0OWZjbEU" width="250">
+<img src="https://github.com/marquesm91/TerminalSnake/blob/master/layout_v1.0.0.png" width="500">
 
 
 ## Build and play
