@@ -34,11 +34,7 @@ To be written...
 
 ## How the game works
 
-<<<<<<< HEAD
 To be written...
-=======
-<img src="https://github.com/marquesm91/TerminalSnake/blob/master/layout_v1.0.0.png" width="500">
->>>>>>> 72c71b6a808c777b10c8b270459c12fa678bffda
 
 ## Versions
 
@@ -50,11 +46,6 @@ To be written...
 
 ### Need to improve
 
-<<<<<<< HEAD
 * Remove the usleep() used because it can delay the movement snake when holding the key pressed.
 * Create the Highscore functionalite.
 * Integrate a database to store the Highscore.
-=======
-Tip: if you want to make <code>tsnake</code> a default command on your terminal you can do:<br>
-<code>touch ~/.bash_aliases ... (learn full command)</code>
->>>>>>> 72c71b6a808c777b10c8b270459c12fa678bffda
