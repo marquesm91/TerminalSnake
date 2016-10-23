@@ -47,7 +47,7 @@ void initializeGame() {
 		mvprintw(i, 0, "|"); mvprintw(i, COLS - 1, "|");	
 	}
 
-	for(int j = 1; j < COLS - 1; j++){
+	for(int j = 1;  j < COLS - 1; j++){
 		mvprintw(1, j, "-"); mvprintw(LINES - 1, j, "-");
 	}
 
