@@ -28,7 +28,7 @@ $ touch ~/.bash_aliases && echo 'alias tsnake="TSNAKE_DIR"' >> ~/.bash_aliases<b
 $ source ~/.bashrc
 ```
 
-## Design Game and Functionalities
+## Game Design and Functionalities
 
 To be written...
 
@@ -43,7 +43,7 @@ To be written...
 * v1.1.1 - Introduced the unit-tests using Catch.
 * v1.1.2 - Improved the game design architecture.
 * v1.1.3 - Correct a bug where the food <em>f</em> born inside the snake <em>@</em>.
-* <strong>v1.1.4</strong> - Introduced the <clock> and now we can do a timestamp to control the moves of the snake and forget the usleep().
+* <strong>v1.1.4</strong> - Introduced the Clock and now a timestamp could be created to control the snake moves and forget the usleep().
 
 ### Need to improve
 
