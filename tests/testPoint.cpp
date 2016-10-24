@@ -1,8 +1,9 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch.hpp"
 #include "../libs/point.hpp"
+#include "../libs/food.hpp"
 
-TEST_CASE("Testing Class Point") {
+TEST_CASE("Testing Class Point", "[point]") {
     
     SECTION("Testing if point was initialized (0,0)"){
         
@@ -23,10 +24,16 @@ TEST_CASE("Testing Class Point") {
         Point p1;
         Point p2;
 
-        CHECK( p1 == p2 );
+        CHECK(p1 == p2);
 
         p2.setX(2);
 
-        CHECK( p1 != p2 );
+        CHECK(p1 != p2);
     }
+}
+
+TEST_CASE("Testing Class Food", "[food]") {
+
+    Food f;
+    REQUIRE( f.getX() + f.getY() == 0 );
 }

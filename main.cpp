@@ -1,7 +1,13 @@
 #include <iostream>
 #include <csignal>
+#include <stdio.h>
 #include <unistd.h>
+#include <chrono>
+#include <ctime>
+#include <ratio>
 #include "./libs/body.hpp"
+
+using namespace std::chrono;
 
 volatile sig_atomic_t interruptFlag = 0; // catch Ctrl + C event
 
@@ -18,7 +24,7 @@ void initializeGame() {
 	start_color();			// Start the color functionality
 	cbreak();				// Line buffering disabled
 	use_default_colors();	// Use background color default
-	//timeout(5000);
+	//timeout(100);
 	curs_set(0);			// hide cursor console
 	keypad(stdscr, TRUE);	// For Arrow Keys
 	noecho();				// Disable echo() in getch()
@@ -67,6 +73,8 @@ int main()
 	char key_stroke = RIGHT;
 	char disable_move = LEFT;
 
+	steady_clock::time_point last = steady_clock::now(); // Initialize the last time
+
 	while(!interruptFlag && !(body->gameOver)) {
 	
 		char aux = getch();
@@ -74,15 +82,22 @@ int main()
 		if(aux != ERR && aux != disable_move)
 			key_stroke = (aux >= 2 && aux <= 5) ? aux : key_stroke;
 
-		switch ((int)key_stroke) {
-			case UP: 	body->move(UP); 	disable_move = DOWN; 	break;
-			case DOWN: 	body->move(DOWN); 	disable_move = UP; 		break;
-			case RIGHT: body->move(RIGHT);	disable_move = LEFT; 	break;
-			case LEFT: 	body->move(LEFT);	disable_move = RIGHT;	break;
+		steady_clock::time_point now = steady_clock::now();	// Get the actual time
+		double timestamp = duration_cast<milliseconds>(now - last).count(); // Get the timestamp in millis
+
+		// Only do the next move every DELAY milliseconds 
+		if (timestamp >= DELAY){
+			
+			last = now; // Reset timestamp
+
+			switch ((int)key_stroke) {
+				case UP: 	body->move(UP); 	disable_move = DOWN; 	break;
+				case DOWN: 	body->move(DOWN); 	disable_move = UP; 		break;
+				case RIGHT: body->move(RIGHT);	disable_move = LEFT; 	break;
+				case LEFT: 	body->move(LEFT);	disable_move = RIGHT;	break;
+			}
 		}
 
-		//ungetch(aux);
-		usleep(delay);
 	}
 
 	endwin();

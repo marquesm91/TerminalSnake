@@ -16,7 +16,7 @@
 // Use default color when init_curses
 #define COLOR_DEFAULT -1
 
-int delay = 35000; // 50 ms
+const int DELAY = 35; // 35 ms
 const int initialSnakeSize = 3;
 
 using namespace std;
@@ -48,7 +48,7 @@ public:
 		gameOver = false;
 		
 		// print Score, Size and Food initial position
-		mvprintw(0, 7, to_string((tam - initialSnakeSize) * delay / 1000).c_str());
+		mvprintw(0, 7, to_string((tam - initialSnakeSize) * DELAY).c_str());
 		mvprintw(0, 19, to_string(tam).c_str());
 		string x = food->getX() >= 10 ? to_string(food->getX()) : to_string(food->getX()) + " ";
 		string y = food->getY() >= 10 ? to_string(food->getY()) : to_string(food->getY()) + " ";
@@ -72,7 +72,7 @@ public:
 		this->tam++;
 
 		// print Score
-		mvprintw(0, 7, to_string((tam - initialSnakeSize) * delay / 1000).c_str());
+		mvprintw(0, 7, to_string((tam - initialSnakeSize) * DELAY).c_str());
 		
 		// print Size
 		mvprintw(0, 19, to_string(this->tam).c_str());

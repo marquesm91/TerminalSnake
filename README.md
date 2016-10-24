@@ -42,10 +42,10 @@ To be written...
 * v1.1.0 - First version of the game.
 * v1.1.1 - Introduced the unit-tests using Catch.
 * v1.1.2 - Improved the game design architecture.
-* <strong>v1.1.3</strong> - Correct a bug where the food <em>f</em> born inside the snake <em>@</em>.
+* v1.1.3 - Correct a bug where the food <em>f</em> born inside the snake <em>@</em>.
+* <strong>v1.1.4</strong> - Introduced the <clock> and now we can do a timestamp to control the moves of the snake and forget the usleep().
 
 ### Need to improve
 
-* Remove the usleep() used because it can delay the movement snake when holding the key pressed.
 * Create the Highscore functionalite.
 * Integrate a database to store the Highscore.
