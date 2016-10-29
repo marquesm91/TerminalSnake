@@ -21,8 +21,6 @@ class Game{
 
 public:
 
-    Game() { Game(9); }
-
     Game(int level) {
 
         this->level = level;
@@ -61,16 +59,16 @@ public:
                 return true;
             
             } else if (ch == 'f') { // Snake can eat and move!
-      
-              board.increaseScore(level);
-              board.setPrintScore(level);
-
+            
               this->validateFood();
-              board.setPrintFood(food);
-              board.setPrintSize(body);
 
               body.setHead(newHead);
               board.setPrintSnake(body);
+
+              board.setPrintFood(food);
+              board.setPrintScore(level);
+              board.setPrintSize(body);
+              
               board.update();
             
             } else { //Snake can move!

@@ -40,7 +40,7 @@ int main()
 	initNCurses();
 	signal(SIGINT, interruptFunction);
 
-	Game *g = new Game();
+	Game *g = new Game(9);
 	while(!interruptFlag && !g->isGameOver());
 	delete g;
 }

@@ -18,7 +18,7 @@ TEST_CASE("Testing Class Point", "[point]") {
         point.setX(-2);
         REQUIRE( point.getX() == -2 );
     }
-
+ 
     SECTION("Testing comparison between 2 points"){
       
         Point p1;

@@ -12,7 +12,7 @@
 #define TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED
 
 #define TWOBLUECUBES_CATCH_HPP_INCLUDED
-
+ 
 #ifdef __clang__
 #    pragma clang system_header
 #elif defined __GNUC__

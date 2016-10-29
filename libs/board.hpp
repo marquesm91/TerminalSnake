@@ -36,12 +36,10 @@ public:
         mvprintw(1,COLS - 1,"+");
         mvprintw(LINES - 1,0,"+");
         mvprintw(LINES - 1, COLS - 1,"+");
-
-        //this->update();
     }
 
     int getScore() const { return score; }
-    void increaseScore(int level) { score += level; }
+    //void increaseScore(int level) { score += level; }
 
     void update() {
         refresh(); // update board with ncurses help
@@ -81,8 +79,8 @@ public:
     }
 
     void setPrintScore(int level) {
-        this->increaseScore(level);
-        mvprintw(0, 7, to_string(this->getScore()).c_str());
+        score = score + level;
+        mvprintw(0, 7, to_string(score - level).c_str());
     }
 
     void setPrintSize(const Body &b) { mvprintw(0, 19, to_string(b.getSize()).c_str()); }

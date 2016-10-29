@@ -1,5 +1,5 @@
 # Compiler, Flags, Directory Name and Executable Name
-CC= g++
+CC= g++ 
 CFLAGS= -std=c++11
 EFLAGS= -lncurses
 ODIR= ./obj

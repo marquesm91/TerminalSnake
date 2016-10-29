@@ -12,7 +12,7 @@ OBJS= $(patsubst %.cpp,$(ODIR)/%.o,$(SRCS))
 all: $(EXEC)
 
 # Concatenate objects with your new directory
-$(OBJS): | $(ODIR)
+$(OBJS): | $(ODIR) 
 
 # Compile and create objects
 $(ODIR)/%.o: %.cpp
