@@ -24,7 +24,7 @@ $ ./bin/tsnake
 If you want to set `tsnake` a default command on your terminal you may run these next commands replacing TSNAKE_DIR with your `tsnake` file path, i.e `~/mygames/TerminalSnake/bin/tsnake`.
 
 ```
-$ touch ~/.bash_aliases && echo 'alias tsnake="TSNAKE_DIR"' >> ~/.bash_aliases<br>
+$ touch ~/.bash_aliases && echo 'alias tsnake="TSNAKE_DIR"' >> ~/.bash_aliases
 $ source ~/.bashrc
 ```
 
@@ -38,14 +38,15 @@ To be written...
 
 ## Versions
 
-* v1.0.0 - Implemented the movement, limit board and generate the food randomly. 
-* v1.1.0 - First version of the game.
-* v1.1.1 - Introduced the unit-tests using Catch.
-* v1.1.2 - Improved the game design architecture.
-* v1.1.3 - Correct a bug where the food <em>f</em> born inside the snake <em>@</em>.
-* <strong>v1.1.4</strong> - Introduced the Clock and now a timestamp could be created to control the snake moves and forget the usleep().
+* v1.0 - First version of the game. 
+* v1.0a - Introduced the unit-tests using Catch.
+* v1.0b - Improved the game design architecture.
+* v1.0c - Correct a bug where the food <em>f</em> born inside the snake <em>@</em>.
+* v1.0d - Introduced the Clock and now a timestamp could be created to control the snake moves and forget the usleep().
+* v1.0e - Add a difference between delay UP/DOWN movements and RIGHT/LEFT. This make the game more fluid.
+* <strong>v1.1</strong> Whole code refactored. Introduced Clock, Board, Game and Common. Body describes only the Snake which before described the game.
 
-### Need to improve
+### Need to do
 
 * Create the Highscore functionalite.
 * Integrate a database to store the Highscore.
