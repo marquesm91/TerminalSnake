@@ -48,10 +48,9 @@ To be written...
 * v1.1a - Fix a bug where size and score aren't printing correctly.
 * v1.2 - Introduced the GAME OVER screen and ask if you want to play again.
 * <strong>v1.2a</strong> - Fix a bug when you press two arrow keys rapidly and the second is prohibited in relation to the actual direction of the snake the game ends and show the game over screen.
- 
+
 ### Need to do
 
 * Create the Highscore functionalite.
 * Integrate a database to store the Highscore.
 * Menu for the game (change difficulty, change board, etc)
-* Gameover screen to show you lost and ask if you want to play again.
