@@ -1,6 +1,6 @@
 #include <csignal>
 #include <ncurses.h>
-
+#include <iostream>
 #include "./libs/game.hpp"
 
 void initNCurses() {
@@ -35,12 +35,39 @@ void interruptFunction(int sig) {
     endwin();           // exit NCurses
 }
 
+void initGame(Game &g) {
+
+    char ch;
+    
+    while(!interruptFlag && !g.isGameOver());
+    
+    if (!interruptFlag) {
+
+        mvprintw(18,4,"Try again? (Y/n)");
+
+        do{
+
+            ch = getch();
+            ch = toupper(ch);
+
+        } while (ch != 'Y' && ch != 'N' && ch != '\n' && !interruptFlag);
+
+        if (ch == 'Y' || ch == '\n'){
+            g.reset();
+            initGame(g);
+        }
+    }
+}
+
 int main()
 {
-	initNCurses();
+    initNCurses();
 	signal(SIGINT, interruptFunction);
 
-	Game *g = new Game(9);
-	while(!interruptFlag && !g->isGameOver());
-	delete g;
+    Game *g = new Game(9);
+    
+    initGame(*g);
+
+    delete g;
+    
 }

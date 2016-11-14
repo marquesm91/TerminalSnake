@@ -45,8 +45,10 @@ To be written...
 * v1.0d - Introduced the Clock and now a timestamp could be created to control the snake moves and forget the usleep().
 * v1.0e - Add a difference between delay UP/DOWN movements and RIGHT/LEFT. This make the game more fluid.
 * v1.1 - Whole code refactored. Introduced Clock, Board, Game and Common. Body describes only the Snake which before described the game.
-* <strong>v1.1a</strong> - Fix a bug where size and score aren't printing correctly.
-
+* v1.1a - Fix a bug where size and score aren't printing correctly.
+* v1.2 - Introduced the GAME OVER screen and ask if you want to play again.
+* <strong>v1.2a</strong> - Fix a bug when you press two arrow keys rapidly and the second is prohibited in relation to the actual direction of the snake the game ends and show the game over screen.
+ 
 ### Need to do
 
 * Create the Highscore functionalite.

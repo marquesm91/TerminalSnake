@@ -1,6 +1,8 @@
 #ifndef BOARD_H_
 #define BOARD_H_ 
 
+#include <string>
+
 using namespace std;
 
 class Board {
@@ -84,6 +86,26 @@ public:
     }
 
     void setPrintSize(const Body &b) { mvprintw(0, 19, to_string(b.getSize()).c_str()); }
+
+    void printGameOver(){
+        string strGameOver[7];
+
+        strGameOver[0] = " #####                                                               ###";
+        strGameOver[1] = "#     #    ##    #    #  ######       ####   #    #  ######  #####   ###";
+        strGameOver[2] = "#         #  #   ##  ##  #           #    #  #    #  #       #    #  ###";
+        strGameOver[3] = "#  ####  #    #  # ## #  #####       #    #  #    #  #####   #    #   # ";
+        strGameOver[4] = "#     #  ######  #    #  #           #    #  #    #  #       #####      ";
+        strGameOver[5] = "#     #  #    #  #    #  #           #    #   #  #   #       #   #   ###";
+        strGameOver[6] = " #####   #    #  #    #  ######       ####     ##    ######  #    #  ###";
+
+        mvprintw(9, 4, strGameOver[0].c_str());
+        mvprintw(10, 4, strGameOver[1].c_str());
+        mvprintw(11, 4, strGameOver[2].c_str());
+        mvprintw(12, 4, strGameOver[3].c_str());
+        mvprintw(13, 4, strGameOver[4].c_str());
+        mvprintw(14, 4, strGameOver[5].c_str());
+        mvprintw(15, 4, strGameOver[6].c_str());
+    }
 
 };
 
