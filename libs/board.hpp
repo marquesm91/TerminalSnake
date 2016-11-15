@@ -23,7 +23,7 @@ public:
         mvprintw(0, 38, ")  F.POS: (");
         mvprintw(0, 51, ",");
         mvprintw(0, 54, ")");
-        mvprintw(0, 60, "HIGHSCORE: ");
+        mvprintw(0, COLS-15, "HIGHSCORE: ");
 
         // Print static board limits
         for(int i = 1; i < LINES - 1; i++){
@@ -98,13 +98,15 @@ public:
         strGameOver[5] = "#     #  #    #  #    #  #           #    #   #  #   #       #   #   ###";
         strGameOver[6] = " #####   #    #  #    #  ######       ####     ##    ######  #    #  ###";
 
-        mvprintw(9, 4, strGameOver[0].c_str());
-        mvprintw(10, 4, strGameOver[1].c_str());
-        mvprintw(11, 4, strGameOver[2].c_str());
-        mvprintw(12, 4, strGameOver[3].c_str());
-        mvprintw(13, 4, strGameOver[4].c_str());
-        mvprintw(14, 4, strGameOver[5].c_str());
-        mvprintw(15, 4, strGameOver[6].c_str());
+        mvprintw((LINES/2) - 4, (COLS/2) - 36, strGameOver[0].c_str());
+        mvprintw((LINES/2) - 3, (COLS/2) - 36, strGameOver[1].c_str());
+        mvprintw((LINES/2) - 2, (COLS/2) - 36, strGameOver[2].c_str());
+        mvprintw((LINES/2) - 1, (COLS/2) - 36, strGameOver[3].c_str());
+        mvprintw((LINES/2) + 0, (COLS/2) - 36, strGameOver[4].c_str());
+        mvprintw((LINES/2) + 1, (COLS/2) - 36, strGameOver[5].c_str());
+        mvprintw((LINES/2) + 2, (COLS/2) - 36, strGameOver[6].c_str());
+        
+        mvprintw((LINES/2) + 5, (COLS/2) - 36,"Try again? (Y/n)");
     }
 
 };

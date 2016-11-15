@@ -6,11 +6,9 @@
 void initNCurses() {
 
     initscr();              // Start curses mode
-    //WINDOW win = newwin(COLS,LINES,0,0);
     start_color();          // Start the color functionality
     cbreak();               // Line buffering disabled
     use_default_colors();   // Use background color default
-    //timeout(100);
     curs_set(0);            // hide cursor console
     keypad(stdscr, TRUE);   // For Arrow Keys
     noecho();               // Disable echo() in getch()
@@ -42,8 +40,6 @@ void initGame(Game &g) {
     while(!interruptFlag && !g.isGameOver());
     
     if (!interruptFlag) {
-
-        mvprintw(18,4,"Try again? (Y/n)");
 
         do{
 

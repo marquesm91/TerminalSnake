@@ -36,7 +36,7 @@ To be written...
 
 To be written...
 
-## Versions
+## Releases
 
 * v1.0 - First version of the game. 
 * v1.0a - Introduced the unit-tests using Catch.
