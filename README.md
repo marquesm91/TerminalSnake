@@ -2,6 +2,9 @@
 
 The old and good Snake game now available to play in Terminal with a modern interface!
 
+[![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue)](https://marquesm91.github.io/TerminalSnake/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![Gameplay v1.4](assets/gameplay.png)
 
 ## ✨ Features
@@ -11,47 +14,69 @@ The old and good Snake game now available to play in Terminal with a modern inte
 - **Highscore System**: Persistent highscore saved locally
 - **Multiple Difficulty Levels**: Easy, Normal, Hard, and Insane modes
 - **Smooth Gameplay**: Optimized timing for fluid snake movement
+- **🌐 World Leaderboard**: Compete globally with Firebase-powered leaderboard
+- **🔐 Google Sign-In**: Authenticate using your Google account
+- **🛡️ Anti-Cheat System**: Replay-based validation with deterministic PRNG
+- **🏗️ Clean Architecture**: DDD/Hexagonal architecture for maintainability
 
 ## 📋 Prerequisites
 
 This game was coded using [NCurses](https://github.com/gittup/ncurses), a library to ease the development of Console Applications. You can create game windows or print any character anywhere with just a few lines of code.
 
-### Installing NCurses
+### Installing Dependencies
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get install libncurses5-dev
+sudo apt-get install libncurses5-dev libcurl4-openssl-dev libssl-dev
 ```
 
 **Fedora/RHEL:**
 ```bash
-sudo dnf install ncurses-devel
+sudo dnf install ncurses-devel libcurl-devel openssl-devel
 ```
 
 **macOS:**
 ```bash
-brew install ncurses
+brew install ncurses curl openssl
 ```
 
 All the tests were coded using [Catch](https://github.com/philsquared/Catch), a powerful framework for unit-tests that is header-only! You will find `catch.hpp` in the `tests` folder.
 
 ## 🚀 Build and Play
 
-Run the following commands:
-
 ```bash
 git clone https://github.com/marquesm91/TerminalSnake
 cd TerminalSnake
-make
-./bin/tsnake
+make            # Build all 3 versions
+make run        # Run v3.0 (Clean Architecture)
+```
+
+### Version Switching
+
+The project maintains 3 versions for backward compatibility:
+
+| Command | Version | Description | Binary |
+|---------|---------|-------------|--------|
+| `make legacy` | v1.0 | Original monolithic code | `bin/tsnake` |
+| `make modular` | v2.0 | Platform abstraction layer | `bin/tsnake_modular` |
+| `make clean_arch` | v3.0 | Clean Architecture (DDD) | `bin/tsnake_clean` |
+
+**Quick run commands:**
+```bash
+make run-legacy    # Run v1.0
+make run-modular   # Run v2.0
+make run-clean     # Run v3.0 (default)
+```
+
+**Show all options:**
+```bash
+make help
 ```
 
 ### Adding as Terminal Command
 
-If you want to set `tsnake` as a default command on your terminal, run these commands (replace `TSNAKE_DIR` with your actual path):
-
 ```bash
-echo 'alias tsnake="~/TerminalSnake/bin/tsnake"' >> ~/.bash_aliases
+echo 'alias tsnake="~/TerminalSnake/bin/tsnake_clean"' >> ~/.bash_aliases
 source ~/.bashrc
 ```
 
@@ -67,42 +92,56 @@ source ~/.bashrc
 | N | Decline (Exit) |
 | Q | Quit/Back |
 
-## 🏗️ Game Architecture
+## 🏗️ Architecture
 
-The game is organized into several modular components:
+The game follows **Clean Architecture** (DDD/Hexagonal) principles:
 
 ```
-TerminalSnake/
-├── main.cpp          # Entry point and game loop
-├── Makefile          # Build configuration
-├── libs/
-│   ├── common.hpp    # Common constants and definitions
-│   ├── point.hpp     # Point class for 2D coordinates
-│   ├── clock.hpp     # Timestamp management for game timing
-│   ├── food.hpp      # Food generation and positioning
-│   ├── body.hpp      # Snake body management (movement, growth)
-│   ├── board.hpp     # Game board rendering and collision detection
-│   ├── game.hpp      # Main game logic controller
-│   ├── menu.hpp      # Menu system interface
-│   └── highscore.hpp # Persistent highscore management
-└── tests/
-    ├── catch.hpp     # Catch testing framework
-    ├── Makefile      # Test build configuration
-    └── testPoint.cpp # Unit tests for Point class
+src/                           # Clean Architecture (v3.0)
+├── domain/                    # Business rules (zero dependencies)
+│   ├── entities/              # Snake, Food, Game aggregate
+│   ├── value_objects/         # Point, Direction, GameConfig
+│   └── services/              # RandomService, ReplayService
+├── application/               # Use cases and port interfaces
+│   ├── ports/                 # IRenderer, IInput, IStorage...
+│   └── use_cases/             # PlayGameUseCase, SubmitScoreUseCase
+└── infrastructure/            # Concrete implementations
+    ├── adapters/              # NCursesRenderer, NCursesInput
+    └── persistence/           # FileStorage
+
+libs/                          # Legacy code (v1.0, v2.0)
+├── *.hpp                      # Original classes
+├── core/                      # Modular engine (v2.0)
+└── platform/                  # Platform adapters (v2.0)
+
+tests/
+├── testPoint.cpp              # Legacy tests
+└── testCleanArch.cpp          # Clean Architecture tests (50 cases)
 ```
 
-### Core Classes
+### Core Domain
 
 | Class | Description |
 |-------|-------------|
-| `Point` | Base class representing 2D coordinates (x, y) |
-| `Food` | Extends Point, handles random food generation |
-| `Body` | Manages snake segments using a linked list |
-| `Board` | Handles all rendering: borders, snake, food, UI |
-| `Clock` | Provides timestamp-based game timing |
-| `Game` | Main game controller, orchestrates all components |
-| `Menu` | Interactive menu system with navigation |
-| `Highscore` | Loads/saves highscore to file system |
+| `Point` | Immutable 2D coordinate value object |
+| `Direction` | Movement direction enum with utilities |
+| `GameConfig` | Immutable game configuration (Builder pattern) |
+| `SnakeEntity` | Snake body management with fixed-size array |
+| `FoodEntity` | Food position and state |
+| `Game` | Aggregate root coordinating Snake + Food |
+| `RandomService` | Deterministic PRNG (xorshift32) for replay |
+| `ReplayService` | Records and validates game replays |
+
+### Ports (Interfaces)
+
+| Port | Description |
+|------|-------------|
+| `IRenderer` | Output rendering abstraction |
+| `IInput` | User input abstraction |
+| `ITimer` | Time management abstraction |
+| `IStorage` | Local persistence abstraction |
+| `IAuth` | Authentication abstraction |
+| `ILeaderboard` | Remote leaderboard abstraction |
 
 ### Game Flow
 
@@ -118,19 +157,58 @@ TerminalSnake/
    - Render frame
 4. **Game Over**: Display score, check highscore, prompt replay
 
-## 🧪 Running Tests
+## 🧪 Testing & Code Quality
+
+### Running Tests
 
 ```bash
-cd tests
-make
-./t1
+make test              # Run all tests
+cd tests && make test  # Same, from tests directory
 ```
+
+**Test results:**
+- Legacy tests: 22 test cases, 60 assertions
+- Clean Architecture tests: 50 test cases, 5,249 assertions
+
+### Code Coverage
+
+Generate HTML coverage report (requires `lcov`):
+
+```bash
+# Install lcov if needed
+sudo apt install lcov
+
+# Generate report
+cd tests && make coverage
+
+# Open report
+xdg-open coverage_report/html/index.html
+```
+
+### Lines of Code
+
+```bash
+# Install cloc if needed
+sudo apt install cloc
+
+# Show statistics
+make loc
+make stats
+```
+
+**Project Statistics:**
+| Layer | Files | Code Lines |
+|-------|-------|------------|
+| Clean Architecture (`src/`) | 21 | 1,713 |
+| Full Project | 54 | 6,228 |
 
 ## 📦 Releases
 
 | Version | Description |
 |---------|-------------|
-| **v1.4** | Snake now grows when eating food, size display updates correctly |
+| **v3.0** | 🏗️ Clean Architecture refactor (DDD/Hexagonal), 50+ test cases |
+| **v2.0** | 🌐 World Leaderboard with Firebase, Google Sign-In, Anti-Cheat system |
+| v1.4 | Snake now grows when eating food, size display updates correctly |
 | v1.3 | Added menu system, settings, highscore persistence, modern UI |
 | v1.2a | Fix bug when pressing two arrow keys rapidly |
 | v1.2 | Introduced GAME OVER screen and play again prompt |
@@ -148,10 +226,167 @@ make
 - [x] Create highscore functionality
 - [x] Menu system for game settings
 - [x] Difficulty levels
+- [x] World leaderboard with Firebase
+- [x] Google authentication
+- [x] Anti-cheat system with replay validation
+- [x] Clean Architecture refactor
+- [x] GitHub Pages landing page
+- [ ] Deploy Firebase Cloud Functions (backend ready)
+- [ ] Implement Firebase adapters for Clean Architecture
+- [ ] Arduino platform support
 - [ ] Multiple game modes (walls, obstacles)
 - [ ] Sound effects
 - [ ] Multiplayer support
-- [ ] Custom themes/skins
+
+## 🌐 World Leaderboard (WIP)
+
+The leaderboard system uses Firebase with server-side replay validation:
+
+### Implementation Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Firebase Cloud Functions | ✅ Ready | `firebase/functions/index.js` |
+| Legacy Auth/Leaderboard | ✅ Ready | `libs/auth.hpp`, `libs/leaderboard.hpp` |
+| Clean Arch Ports | ✅ Defined | `src/application/ports/` |
+| Clean Arch Adapters | ⏳ TODO | Need `FirebaseAuthAdapter`, `FirebaseLeaderboardAdapter` |
+| Firebase Deployment | ⏳ TODO | Requires `firebase deploy` |
+
+### Anti-Cheat System
+
+The game uses deterministic PRNG (xorshift32) for replay validation:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│     Client      │     │    Firebase     │     │ Cloud Function  │
+│                 │     │                 │     │                 │
+│ 1. Play game    │     │                 │     │                 │
+│ 2. Record replay│     │                 │     │                 │
+│ 3. Send Base64  │────▶│ 4. Store        │────▶│ 5. Re-simulate  │
+│                 │     │                 │     │ 6. Compare score│
+│                 │     │ 8. Valid score  │◀────│ 7. Validate/Reject│
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### Firebase Setup
+
+1. Create Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+2. Enable Firestore and Authentication (Google provider)
+3. Update `libs/firebase_config.hpp` with your credentials
+4. Deploy functions:
+   ```bash
+   cd firebase/functions
+   npm install
+   firebase deploy --only functions
+   ```
+
+## 📦 Installation
+
+### Quick Download
+
+Download pre-built binaries from [GitHub Releases](https://github.com/marquesm91/TerminalSnake/releases/latest):
+
+| Platform | Architecture | Download |
+|----------|--------------|----------|
+| Linux | x64 | `tsnake-linux-x64.tar.gz` |
+| Linux | ARM64 | `tsnake-linux-arm64.tar.gz` |
+| macOS | Apple Silicon | `tsnake-macos-arm64.zip` |
+| macOS | Intel | `tsnake-macos-x64.zip` |
+| Windows | x64 | `tsnake-windows-x64.zip` |
+
+### Package Managers
+
+```bash
+# Homebrew (macOS/Linux)
+brew install marquesm91/tap/tsnake
+
+# Snap (Ubuntu/Linux)
+snap install tsnake
+
+# AUR (Arch Linux)
+yay -S tsnake
+
+# Winget (Windows)
+winget install marquesm91.tsnake
+
+# Chocolatey (Windows)
+choco install tsnake
+```
+
+## 🔧 Technical Details
+
+### Dependencies
+
+| Library | Purpose | Install |
+|---------|---------|---------|
+| NCurses | Terminal UI | `apt install libncurses5-dev` |
+| libcurl | HTTP requests | `apt install libcurl4-openssl-dev` |
+| OpenSSL | HTTPS/crypto | `apt install libssl-dev` |
+| Catch | Testing | Header-only (included) |
+| lcov | Coverage | `apt install lcov` (optional) |
+| cloc | LOC stats | `apt install cloc` (optional) |
+
+### Build Flags
+
+```makefile
+CFLAGS = -std=c++11 -Wall -Wextra -Wpedantic
+LIBS   = -lncurses -lcurl -lssl -lcrypto
+```
+
+### Directory Structure
+
+```
+TerminalSnake/
+├── main.cpp              # v1.0 entry point
+├── main_modular.cpp      # v2.0 entry point
+├── Makefile              # Build system
+├── libs/                 # Legacy code (v1.0, v2.0)
+│   ├── *.hpp             # Original classes
+│   ├── core/             # v2.0 engine
+│   └── platform/         # v2.0 platform adapters
+├── src/                  # v3.0 Clean Architecture
+│   ├── domain/           # Business rules
+│   ├── application/      # Use cases & ports
+│   └── infrastructure/   # Adapters
+├── firebase/             # Backend
+│   └── functions/        # Cloud Functions
+├── tests/                # Test suite
+├── docs/                 # GitHub Pages
+├── .github/workflows/    # CI/CD
+│   ├── release.yml       # Multi-platform builds
+│   └── publish.yml       # Package manager publishing
+└── bin/                  # Compiled binaries
+```
+
+## 🔄 CI/CD Pipeline
+
+The project uses GitHub Actions for automated releases:
+
+1. **On tag push** (`v*`):
+   - Builds for Linux (x64, ARM64), macOS (Intel, Apple Silicon), Windows
+   - Creates GitHub Release with binaries and checksums
+
+2. **On release publish**:
+   - Generates Homebrew formula
+   - Builds and publishes to Snap Store
+   - Creates Flatpak manifest
+   - Generates AUR PKGBUILD
+   - Creates Winget/Chocolatey manifests
+
+```bash
+# Create a new release
+git tag v1.0.0
+git push origin --tags
+```
+
+## 🌐 GitHub Pages
+
+Visit the landing page: [https://marquesm91.github.io/TerminalSnake/](https://marquesm91.github.io/TerminalSnake/)
+
+Features:
+- Live leaderboard (top 10 weekly players)
+- Download links for all platforms
+- Package manager installation commands
 
 ## 📄 License
 

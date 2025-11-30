@@ -1,0 +1,21 @@
+# GitHub Pages Configuration
+title: Terminal Snake
+description: A modern snake game for the terminal with world leaderboard, anti-cheat system, and clean architecture.
+url: https://marquesm91.github.io
+baseurl: /TerminalSnake
+
+# Theme (optional, we use custom HTML)
+# theme: jekyll-theme-minimal
+
+# Exclude from processing
+exclude:
+  - Makefile
+  - obj/
+  - bin/
+  - tests/
+  - libs/
+  - src/
+  - firebase/
+  - notes.md
+  - "*.cpp"
+  - "*.hpp"

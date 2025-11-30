@@ -1,3 +1,50 @@
-bin
-obj
+# Build outputs
+bin/
+obj/
+*.o
+*.out
+
+# Generated files
 database.hpp
+notes.md
+
+# Dependencies
+node_modules/
+firebase/node_modules/
+firebase/functions/node_modules/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test binaries
+tests/runTests
+tests/runTestsClean
+tests/runTestsLegacy
+tests/obj/
+
+# WASM build
+web/build/
+*.wasm
+*.js.mem
+emsdk/
+
+# Firebase public WASM outputs (generated, don't commit)
+firebase/public/tsnake.js
+firebase/public/tsnake.wasm

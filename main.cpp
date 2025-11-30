@@ -4,6 +4,9 @@
 #include "./libs/game.hpp"
 #include "./libs/menu.hpp"
 #include "./libs/highscore.hpp"
+#include "./libs/auth.hpp"
+#include "./libs/leaderboard.hpp"
+#include "./libs/anticheat.hpp"
 
 void initNCurses() {
 
@@ -35,16 +38,39 @@ void interruptFunction(int /* sig */) {
     endwin();           // exit NCurses
 }
 
-bool runGame(int level) {
+bool runGame(int level, Auth* auth, Leaderboard* leaderboard) {
 
     char ch;
     Game *g = new Game(level);
+    AntiCheat anticheat;
+    anticheat.setDifficulty(level);
     
-    while(!interruptFlag && !g->isGameOver());
+    while(!interruptFlag && !g->isGameOver()) {
+        // Record inputs for anti-cheat
+        // Note: In a full implementation, we'd need to hook into the game's input handling
+    }
     
     bool playAgain = false;
     
     if (!interruptFlag) {
+        // Get final score from game
+        int finalScore = g->getScore();
+        int snakeSize = g->getSnakeSize();
+        
+        // Update local highscore
+        Highscore highscore;
+        highscore.set(finalScore);
+        
+        // Submit to leaderboard if authenticated
+        if (auth && auth->isAuthenticated() && leaderboard) {
+            anticheat.setScore(finalScore);
+            auto sessionData = anticheat.getSessionData();
+            
+            if (sessionData.confidenceScore >= 30) {
+                leaderboard->submitScore(sessionData, snakeSize);
+                leaderboard->showUserRank(finalScore);
+            }
+        }
 
         do{
 
@@ -65,6 +91,13 @@ bool runGame(int level) {
 void showMenu() {
     Menu menu;
     Highscore highscore;
+    Auth auth;
+    Leaderboard leaderboard(&auth);
+    
+    // Update menu if user is already signed in
+    if (auth.isAuthenticated()) {
+        menu.setUserSignedIn(true, auth.getDisplayName());
+    }
     
     nodelay(stdscr, FALSE);  // Enable blocking for menu navigation
     
@@ -77,7 +110,7 @@ void showMenu() {
                 clear();
                 nodelay(stdscr, TRUE);  // Disable blocking for game
                 
-                while (runGame(menu.getDifficultyLevel())) {
+                while (runGame(menu.getDifficultyLevel(), &auth, &leaderboard)) {
                     // Reload highscore for next game
                     highscore = Highscore();
                 }
@@ -86,14 +119,30 @@ void showMenu() {
                 // Reload highscore after game
                 highscore = Highscore();
                 break;
+            
+            case 1: // Leaderboard
+                leaderboard.fetch();
+                leaderboard.display();
+                break;
                 
-            case 1: // Settings
+            case 2: // Settings
                 while (!menu.showSettings() && !interruptFlag) {
                     // Stay in settings until user presses 'q'
                 }
                 break;
+            
+            case 3: // Sign In / Sign Out
+                if (auth.isAuthenticated()) {
+                    auth.logout();
+                    menu.setUserSignedIn(false);
+                } else {
+                    if (auth.authenticateWithDeviceFlow()) {
+                        menu.setUserSignedIn(true, auth.getDisplayName());
+                    }
+                }
+                break;
                 
-            case 2: // Exit
+            case 4: // Exit
                 running = false;
                 break;
                 

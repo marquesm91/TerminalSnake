@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Leaderboard entries - public read, write only via Cloud Functions
+    match /leaderboard/{entryId} {
+      allow read: if true;
+      allow write: if false;  // Only Cloud Functions can write
+    }
+    
+    // Global leaderboard stats
+    match /stats/{statId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // User profiles
+    match /users/{userId} {
+      // Anyone can read public profile
+      allow read: if true;
+      
+      // Only the user can write their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Replay data (for verification)
+    match /replays/{replayId} {
+      allow read: if true;
+      allow write: if false;  // Only Cloud Functions can write
+    }
+    
+    // Reported cheaters (admin only)
+    match /reports/{reportId} {
+      allow read: if false;
+      allow write: if request.auth != null;
+    }
+  }
+}

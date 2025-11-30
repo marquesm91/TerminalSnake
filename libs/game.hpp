@@ -40,6 +40,9 @@ public:
     }
 
     ~Game() { endwin(); }
+    
+    int getScore() const { return board->getScore(); }
+    int getSnakeSize() const { return body->getSize(); }
 
     void validateFood() {
        food->getFood();

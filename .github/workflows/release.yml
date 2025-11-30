@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: tsnake
+
+jobs:
+  # ==========================================================================
+  # Linux Build (x64 + ARM64)
+  # ==========================================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libncurses5-dev libncursesw5-dev libcurl4-openssl-dev libssl-dev
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          fi
+      
+      - name: Build
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            CXX=aarch64-linux-gnu-g++ make clean_arch LDFLAGS="-static"
+          else
+            make clean_arch LDFLAGS="-static"
+          fi
+      
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp bin/tsnake_clean dist/${{ env.APP_NAME }}
+          cp README.md LICENSE.md dist/
+          cd dist && tar -czvf ../${{ env.APP_NAME }}-linux-${{ matrix.arch }}.tar.gz *
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: ${{ env.APP_NAME }}-linux-${{ matrix.arch }}.tar.gz
+
+  # ==========================================================================
+  # macOS Build (Intel + Apple Silicon)
+  # ==========================================================================
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: brew install ncurses curl openssl@3
+      
+      - name: Build
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            CXXFLAGS="-arch arm64" LDFLAGS="-arch arm64" make clean_arch
+          else
+            CXXFLAGS="-arch x86_64" LDFLAGS="-arch x86_64" make clean_arch
+          fi
+      
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp bin/tsnake_clean dist/${{ env.APP_NAME }}
+          cp README.md LICENSE.md dist/
+          cd dist && zip -r ../${{ env.APP_NAME }}-macos-${{ matrix.arch }}.zip *
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: ${{ env.APP_NAME }}-macos-${{ matrix.arch }}.zip
+
+  # ==========================================================================
+  # Windows Build (MSYS2/MinGW)
+  # ==========================================================================
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-ncurses
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-openssl
+            make
+      
+      - name: Build
+        run: make clean_arch
+      
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item bin/tsnake_clean.exe dist/${{ env.APP_NAME }}.exe
+          Copy-Item README.md, LICENSE.md dist/
+          # Copy required DLLs
+          Copy-Item C:/msys64/mingw64/bin/libncursesw6.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libcurl-4.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libssl-3-x64.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libcrypto-3-x64.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libgcc_s_seh-1.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libstdc++-6.dll dist/
+          Copy-Item C:/msys64/mingw64/bin/libwinpthread-1.dll dist/
+          Compress-Archive -Path dist/* -DestinationPath ${{ env.APP_NAME }}-windows-x64.zip
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: ${{ env.APP_NAME }}-windows-x64.zip
+
+  # ==========================================================================
+  # Create GitHub Release
+  # ==========================================================================
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          find . -name "*.tar.gz" -o -name "*.zip" | while read f; do
+            sha256sum "$f" >> ../checksums.txt
+          done
+          cat ../checksums.txt
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Terminal Snake ${{ github.ref_name }}
+          body: |
+            ## 🐍 Terminal Snake ${{ github.ref_name }}
+            
+            A classic Snake game for your terminal with world leaderboard!
+            
+            ### Downloads
+            
+            | Platform | Architecture | Download |
+            |----------|--------------|----------|
+            | Linux | x64 | `tsnake-linux-x64.tar.gz` |
+            | Linux | ARM64 | `tsnake-linux-arm64.tar.gz` |
+            | macOS | Intel | `tsnake-macos-x64.zip` |
+            | macOS | Apple Silicon | `tsnake-macos-arm64.zip` |
+            | Windows | x64 | `tsnake-windows-x64.zip` |
+            
+            ### Installation
+            
+            **Linux/macOS:**
+            ```bash
+            tar -xzf tsnake-linux-x64.tar.gz  # or unzip for macOS
+            chmod +x tsnake
+            ./tsnake
+            ```
+            
+            **Windows:**
+            Extract the zip and run `tsnake.exe`
+            
+            ### Features
+            - 🎮 Classic snake gameplay
+            - 🏆 World leaderboard with anti-cheat
+            - 🔐 Google Sign-In
+            - 4 difficulty levels
+            
+            ### Checksums (SHA256)
+            ```
+            $(cat checksums.txt)
+            ```
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+            checksums.txt

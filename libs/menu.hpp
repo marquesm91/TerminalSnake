@@ -14,6 +14,7 @@ private:
     int animationFrame;
     std::vector<std::string> menuOptions;
     std::vector<std::string> difficultyOptions;
+    bool userSignedIn;
 
     void drawLogo(int startY, int startX) {
         // Animated color effect for the logo
@@ -47,7 +48,7 @@ private:
 
         // Subtitle
         attron(COLOR_PAIR(5));  // Yellow
-        mvprintw(startY + 6, startX - 10, "Terminal Edition v1.4");
+        mvprintw(startY + 6, startX - 10, "Terminal Edition v2.0");
         attroff(COLOR_PAIR(5));
     }
 
@@ -76,9 +77,18 @@ private:
     }
 
 public:
-    Menu() : selectedOption(0), difficultyLevel(1), animationFrame(0) {
-        menuOptions = {"Start Game", "Settings", "Exit"};
+    Menu() : selectedOption(0), difficultyLevel(1), animationFrame(0), userSignedIn(false) {
+        menuOptions = {"Start Game", "Leaderboard", "Settings", "Sign In", "Exit"};
         difficultyOptions = {"Easy", "Normal", "Hard", "Insane"};
+    }
+    
+    void setUserSignedIn(bool signedIn, const std::string& userName = "") {
+        userSignedIn = signedIn;
+        if (signedIn && !userName.empty()) {
+            menuOptions[3] = "Sign Out (" + userName.substr(0, 10) + ")";
+        } else {
+            menuOptions[3] = "Sign In";
+        }
     }
 
     int getDifficultyLevel() const { 
@@ -105,9 +115,9 @@ public:
         drawLogo(3, centerX);
 
         // Menu box
-        int boxHeight = 12;
+        int boxHeight = 16;
         int boxWidth = 30;
-        int boxY = centerY - 2;
+        int boxY = centerY - 4;
         int boxX = centerX - boxWidth / 2;
 
         drawMenuBox(boxY, boxX, boxHeight, boxWidth);
@@ -161,7 +171,7 @@ public:
             case 'q':
             case 'Q':
                 timeout(-1);  // Reset to blocking
-                return 2;  // Exit
+                return 4;  // Exit
             case ERR:  // Timeout - just continue animating
                 return -1;
             default:
