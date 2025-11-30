@@ -45,11 +45,19 @@
 #define COLOR_WHITE   7
 #define COLOR_DEFAULT -1
 
-// Attributes
+// Attributes - Shifted to avoid conflict with Unicode chars (0-0xFFFF)
 #define A_NORMAL    0
-#define A_BOLD      (1 << 8)
-#define A_REVERSE   (1 << 9)
-#define A_UNDERLINE (1 << 10)
+#define A_BOLD      (1 << 16)
+#define A_REVERSE   (1 << 17)
+#define A_UNDERLINE (1 << 18)
+#define A_BLINK     (1 << 19)
+
+// Color pair in bits 24-31
+#define COLOR_PAIR(n) (((n) & 0xFF) << 24)
+#define PAIR_NUMBER(a) (((a) >> 24) & 0xFF)
+
+// A_CHARTEXT mask for extracting character from chtype (16 bits for BMP)
+#define A_CHARTEXT 0xFFFF
 
 // ACS characters - Use Unicode box-drawing characters for better visuals
 // These work well with xterm.js and modern browsers
@@ -133,38 +141,38 @@ inline void web_curses_push_key(int key) {
 // ============================================================================
 
 EM_JS(void, js_terminal_write, (const char* str), {
-    if (window.terminalWrite) {
+    if (typeof window !== 'undefined' && window.terminalWrite) {
         window.terminalWrite(UTF8ToString(str));
     }
 });
 
 EM_JS(void, js_terminal_clear, (), {
-    if (window.terminalClear) {
+    if (typeof window !== 'undefined' && window.terminalClear) {
         window.terminalClear();
     }
 });
 
 EM_JS(void, js_terminal_set_size, (int cols, int rows), {
-    if (window.terminalSetSize) {
+    if (typeof window !== 'undefined' && window.terminalSetSize) {
         window.terminalSetSize(cols, rows);
     }
 });
 
 EM_JS(int, js_get_key, (), {
-    if (window.getKey) {
+    if (typeof window !== 'undefined' && window.getKey) {
         return window.getKey();
     }
     return -1;
 });
 
 EM_JS(void, js_hide_cursor, (), {
-    if (window.terminalWrite) {
+    if (typeof window !== 'undefined' && window.terminalWrite) {
         window.terminalWrite("\x1b[?25l");
     }
 });
 
 EM_JS(void, js_show_cursor, (), {
-    if (window.terminalWrite) {
+    if (typeof window !== 'undefined' && window.terminalWrite) {
         window.terminalWrite("\x1b[?25h");
     }
 });
@@ -354,8 +362,6 @@ inline int refresh() {
     return OK;
 }
 
-
-
 // Get ANSI color code
 inline const char* getAnsiColor(int color, bool foreground) {
     static char buf[16];
@@ -372,8 +378,8 @@ inline const char* getAnsiColor(int color, bool foreground) {
 inline int attron(attr_t attrs) {
     WebCurses::currentAttrs |= attrs;
     
-    // Extract color pair from attrs (lower 8 bits might be color pair)
-    int pair = attrs & 0xFF;
+    // Extract color pair
+    int pair = PAIR_NUMBER(attrs);
     if (pair > 0 && pair < 64) {
         WebCurses::currentColorPair = pair;
     }
@@ -421,8 +427,7 @@ inline int attroff(attr_t attrs) {
     WebCurses::currentAttrs &= ~attrs;
     
     // Update currentColorPair based on remaining attributes
-    // Assuming color pair is stored in the lower 8 bits of attributes
-    WebCurses::currentColorPair = WebCurses::currentAttrs & 0xFF;
+    WebCurses::currentColorPair = PAIR_NUMBER(WebCurses::currentAttrs);
 
     // Reset all attributes and reapply remaining
     js_terminal_write("\x1b[0m");
@@ -431,8 +436,6 @@ inline int attroff(attr_t attrs) {
     }
     return OK;
 }
-
-#define COLOR_PAIR(n) ((n) & 0xFF)
 
 inline int mvprintw(int y, int x, const char* fmt, ...) {
     move(y, x);
@@ -538,7 +541,12 @@ inline int getch() {
 
 inline chtype mvinch(int y, int x) {
     if (y >= 0 && y < WebCurses::LINES && x >= 0 && x < WebCurses::COLS) {
-        return WebCurses::screenBuffer[y][x].ch | WebCurses::screenBuffer[y][x].attrs;
+        // Return character ORed with attributes and color pair
+        // Reconstruct attributes from stored state
+        attr_t attrs = WebCurses::screenBuffer[y][x].attrs;
+        int pair = WebCurses::screenBuffer[y][x].colorPair;
+        
+        return WebCurses::screenBuffer[y][x].ch | attrs | COLOR_PAIR(pair);
     }
     return ' ';
 }
@@ -578,12 +586,6 @@ inline int getmaxy(WINDOW* /* win */) {
 inline int getmaxx(WINDOW* /* win */) {
     return WebCurses::COLS;
 }
-
-// A_BLINK attribute (not really supported in most terminals)
-#define A_BLINK (1 << 11)
-
-// A_CHARTEXT mask for extracting character from chtype
-#define A_CHARTEXT 0xFF
 
 // Global variables accessible from game code
 #define stdscr WebCurses::stdscr

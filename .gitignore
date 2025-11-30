@@ -7,7 +7,10 @@ obj/
 !CONTRIBUTING.md
 
 # Test executables (all test_* binaries in tests folder should not be committed)
+# Test executables
 tests/test_*
+!tests/*.cpp
+!tests/*.hpp
 tests/*.o
 tests/obj/
 tests/runTests*
@@ -28,3 +31,4 @@ firebase-debug.log
 firebase/public/*.js
 firebase/public/*.wasm
 !firebase/public/app.js
+terminalsnake-leaderboard-firebase-adminsdk-fbsvc-20e74338fa.json
