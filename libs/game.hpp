@@ -39,7 +39,12 @@ public:
     
     }
 
-    ~Game() { endwin(); }
+    ~Game() { 
+        // Don't call endwin() here - it's called in main.cpp only
+        if (board) delete board;
+        if (body) delete body;
+        if (food) delete food;
+    }
 
     void validateFood() {
        food->getFood();

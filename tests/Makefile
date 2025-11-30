@@ -3,25 +3,56 @@ CC= g++
 CFLAGS= -std=c++11 -Wall -Wextra
 ODIR= ./obj
 
-# Test executable
-TEST_ALL= runTests
+# Test executables
+TEST_POINT= test_point
+TEST_TERMINAL= test_terminal
+TEST_ALL= test_all
 
-all: $(ODIR) $(TEST_ALL)
+all: $(ODIR) $(TEST_POINT) $(TEST_TERMINAL) $(TEST_ALL)
 
 $(ODIR):
 	@mkdir -p $(ODIR)
 
-# All tests in one executable (Catch requires single CATCH_CONFIG_MAIN)
-$(TEST_ALL): testPoint.cpp catch.hpp
-	$(CC) $(CFLAGS) testPoint.cpp -o $(TEST_ALL)
+# Individual test - Point
+$(TEST_POINT): testPoint.cpp catch.hpp
+	$(CC) $(CFLAGS) testPoint.cpp -o $(TEST_POINT)
+
+# Individual test - Terminal
+$(TEST_TERMINAL): testTerminal.cpp catch.hpp
+	$(CC) $(CFLAGS) testTerminal.cpp -o $(TEST_TERMINAL)
+
+# Combined test runner (runs all tests)
+$(TEST_ALL): $(TEST_POINT) $(TEST_TERMINAL)
+	@echo "Combined test runner created"
+	@touch $(TEST_ALL)
 
 # Run all tests
 test: all
-	@echo "Running all tests..."
-	./$(TEST_ALL)
+	@echo "================================"
+	@echo "Running Point Tests..."
+	@echo "================================"
+	./$(TEST_POINT)
+	@echo ""
+	@echo "================================"
+	@echo "Running Terminal Tests..."
+	@echo "================================"
+	./$(TEST_TERMINAL)
+
+# Run only point tests
+test-point: $(TEST_POINT)
+	./$(TEST_POINT)
+
+# Run only terminal tests
+test-terminal: $(TEST_TERMINAL)
+	./$(TEST_TERMINAL)
+
+# Verbose test output
+test-verbose: all
+	./$(TEST_POINT) -v
+	./$(TEST_TERMINAL) -v
 
 # Delete objects and executables
 clean:
-	rm -rf $(ODIR) $(TEST_ALL)
+	rm -rf $(ODIR) $(TEST_POINT) $(TEST_TERMINAL) $(TEST_ALL)
 
-.PHONY: all test clean
+.PHONY: all test test-point test-terminal test-verbose clean

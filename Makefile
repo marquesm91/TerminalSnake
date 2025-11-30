@@ -1,7 +1,7 @@
 # Compiler, Flags, Directory Name and Executable Name
 CC= g++ 
 CFLAGS= -std=c++11 -Wall -Wextra -Wpedantic
-EFLAGS= -lncurses
+EFLAGS= 
 ODIR= ./obj
 EDIR= ./bin
 EXEC1= tsnake
