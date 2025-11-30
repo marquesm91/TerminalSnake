@@ -376,7 +376,25 @@ jobs:
           Install-BinFile -Name 'tsnake' -Path `$binPath
           "@ | Out-File -FilePath choco/tools/chocolateyinstall.ps1 -Encoding UTF8
       
+      - name: Pack and Publish to Chocolatey
+        if: github.event_name == 'release'
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        shell: pwsh
+        run: |
+          cd choco
+          choco pack
+          
+          $package = Get-ChildItem *.nupkg | Select-Object -First 1
+          if ($package) {
+            Write-Host "Pushing package: $($package.Name)"
+            choco push $package.FullName --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+          } else {
+            Write-Error "No .nupkg file found after packing."
+            exit 1
+          }
+
       - uses: actions/upload-artifact@v4
         with:
           name: chocolatey-package
-          path: choco/
+          path: choco/*.nupkg
