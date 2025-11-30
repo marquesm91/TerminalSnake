@@ -16,8 +16,9 @@ class Game{
     Body *body;
     Food *food;
     Clock clock;
-    int level;
-    char keyStroke;
+    int currentDelay;
+    int pointsSinceLastSpeedUp;
+    int pointsSinceLastObstacle;
 
 public:
 
@@ -28,6 +29,9 @@ public:
         food = new Food();
 
         this->level = level;
+        this->currentDelay = DELAY;
+        this->pointsSinceLastSpeedUp = 0;
+        this->pointsSinceLastObstacle = 0;
 
         // get first food point of the game!
         this->validateFood();
@@ -46,9 +50,24 @@ public:
 
     void validateFood() {
        food->getFood();
-        if (board->getChar(*food) == '@') { // food born inside snake
+        if (board->getChar(*food) == '@' || board->getChar(*food) == '-' || board->getChar(*food) == '|') { // food born inside snake or wall
             validateFood();
         }
+    }
+    
+    void spawnObstacle() {
+        // Simple random obstacle generation
+        int x = (rand() % (LINES - 2)) + 1;
+        int y = (rand() % (COLS - 2)) + 1;
+        Point p(x, y);
+        
+        // Don't spawn on snake, food, or existing walls
+        char ch = board->getChar(p);
+        if (ch != ' ' || (x == food->getX() && y == food->getY())) {
+            return; // Try again next time or skip
+        }
+        
+        board->printObstacle(p);
     }
 
     void reset() {
@@ -62,6 +81,10 @@ public:
         board = new Board();
         body = new Body();
         food = new Food();
+        
+        this->currentDelay = DELAY;
+        this->pointsSinceLastSpeedUp = 0;
+        this->pointsSinceLastObstacle = 0;
 
         // get first food point of the game!
         this->validateFood();
@@ -74,7 +97,7 @@ public:
 
     bool isGameOver() {
 
-        if(clock.getTimestamp() >= DELAY) {
+        if(clock.getTimestamp() >= currentDelay) {
 
             keyStroke = getch();
             body->validateDirection(keyStroke);
@@ -98,6 +121,25 @@ public:
               board->setPrintFood(*food);
               board->setPrintScore(level);
               board->setPrintSize(*body);
+              
+              // Progressive Difficulty Logic
+              pointsSinceLastSpeedUp += level;
+              pointsSinceLastObstacle += level;
+              
+              // Increase speed every 50 points
+              if (pointsSinceLastSpeedUp >= 50) {
+                  if (currentDelay > 30) { // Cap max speed
+                      currentDelay -= 5;
+                      // Visual feedback for speed up could be added here
+                  }
+                  pointsSinceLastSpeedUp = 0;
+              }
+              
+              // Spawn obstacle every 100 points
+              if (pointsSinceLastObstacle >= 100) {
+                  spawnObstacle();
+                  pointsSinceLastObstacle = 0;
+              }
               
               board->update();
             
