@@ -10,7 +10,7 @@ BUILD_DIR = build
 OUTPUT_DIR = ../firebase/public
 
 # Output files
-WASM_OUTPUT = $(OUTPUT_DIR)/game.js
+WASM_OUTPUT = $(OUTPUT_DIR)/tsnake.js
 
 # Source files
 SOURCES = main_web.cpp
@@ -46,8 +46,8 @@ setup:
 $(WASM_OUTPUT): $(SOURCES) web_curses.hpp
 	$(EMCC) $(SOURCES) $(EMCC_FLAGS) -o $(WASM_OUTPUT)
 	@echo "Build complete: $(WASM_OUTPUT)"
-	@ls -la $(OUTPUT_DIR)/game.*
+	@ls -la $(OUTPUT_DIR)/tsnake.*
 
 clean:
 	rm -rf $(BUILD_DIR)
-	rm -f $(OUTPUT_DIR)/game.js $(OUTPUT_DIR)/game.wasm
+	rm -f $(OUTPUT_DIR)/tsnake.js $(OUTPUT_DIR)/tsnake.wasm

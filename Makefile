@@ -160,11 +160,26 @@ help:
 	@echo "  make coverage     Generate coverage report"
 	@echo "  make loc          Count lines of code"
 	@echo "  make stats        Show project statistics"
-	@echo "  make clean        Remove build artifacts"
+	@echo "  make clean        Remove build artifacts
+  make setup-emsdk  Install Emscripten SDK (WASM build tools)
+
+# Setup Emscripten SDK
+setup-emsdk:
+	@echo "Setting up Emscripten SDK..."
+	@if [ ! -d "emsdk" ]; then \
+		git clone https://github.com/emscripten-core/emsdk.git; \
+	else \
+		echo "emsdk directory already exists. Updating..."; \
+		cd emsdk && git pull; \
+	fi
+	@cd emsdk && ./emsdk install latest && ./emsdk activate latest
+	@echo ""
+	@echo "✅ Emscripten SDK installed!"
+	@echo "Run 'source emsdk/emsdk_env.sh' to activate it in your shell.""
 
 # Clean build artifacts
 clean:
 	rm -rf $(ODIR) $(EDIR)
 	rm -rf *.settings
 
-.PHONY: all run run-legacy run-modular run-clean legacy modular clean_arch test coverage loc stats help clean
+.PHONY: all run run-legacy run-modular run-clean legacy modular clean_arch test coverage loc stats help clean setup-emsdk
