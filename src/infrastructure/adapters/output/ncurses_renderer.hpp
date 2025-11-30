@@ -60,6 +60,7 @@ public:
         curs_set(0);
         keypad(stdscr, TRUE);
         nodelay(stdscr, TRUE);
+        leaveok(stdscr, TRUE); // Disable cursor movement to reduce flicker
         
         // Initialize colors
         if (has_colors()) {
@@ -87,17 +88,18 @@ public:
     }
     
     void beginFrame() override {
-        // Adaptive Layout: Center the game area dynamically
-        // Game area is typically 50x25, but we can scale or just center it.
-        // For now, we center the 50x25 area.
-        int gameWidth = 50;
-        int gameHeight = 25;
+        erase(); // Clear the virtual screen buffer, much faster and less flicker than clear()
         
-        offsetX_ = (COLS - gameWidth) / 2;
-        offsetY_ = (LINES - gameHeight) / 2;
+        // Full Screen Layout
+        // Reserve 1 line for top status bar and 1 line for bottom info bar
+        int topMargin = 1;
+        // int bottomMargin = 1; // Not directly used for offsetY, but for game area height calculation
         
-        if (offsetX_ < 0) offsetX_ = 0;
-        if (offsetY_ < 0) offsetY_ = 0;
+        // Game area uses remaining space
+        // Note: The game logic needs to know this size.
+        // For now, we set offsets to accommodate the bars.
+        offsetX_ = 0;
+        offsetY_ = topMargin;
         
         // Increment animation frame for effects
         animationFrame_++;
@@ -108,11 +110,15 @@ public:
     }
     
     void clear() override {
-        ::clear();
+        // Do nothing here to avoid flicker. 
+        // We rely on overwriting or specific clearing if needed.
     }
     
     void drawBorder(uint8_t width, uint8_t height) override {
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+        
+        // Use full width/height passed from game logic
+        // The game logic should have been configured with (COLS - 2, LINES - 2 - bars)
         
         // Cantos
         mvaddch(offsetY_, offsetX_, ACS_ULCORNER);
@@ -165,10 +171,27 @@ public:
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
     }
     
+    void drawStatusBar(uint32_t score, uint32_t highscore) {
+        // Top Bar
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+        for(int i=0; i<COLS; i++) mvaddch(0, i, ' ');
+        
+        mvprintw(0, 1, "🐍 TERMINAL SNAKE v3.0");
+        mvprintw(0, COLS/2 - 10, "SCORE: %u  HIGH: %u", score, highscore);
+        mvprintw(0, COLS - 15, "DIFFICULTY: ???"); // TODO: Pass difficulty
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+    }
+
+    void drawInfoBar() {
+        // Bottom Bar (Ticker)
+        drawTicker();
+    }
+
     void drawScore(uint32_t score, uint32_t highscore) override {
-        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
-        mvprintw(offsetY_ - 1, offsetX_, "Score: %u  High: %u", score, highscore);
-        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        // Now handled by drawStatusBar, but we keep this for compatibility if needed
+        // or update to call drawStatusBar
+        drawStatusBar(score, highscore);
+        drawInfoBar();
     }
     
     void drawPaused() override {
@@ -281,7 +304,7 @@ public:
         
         // Initialize drops if empty
         if (drops.empty()) {
-            for (int i = 0; i < COLS / 2; ++i) {
+            for (int i = 0; i < COLS / 10; ++i) { // Reduced density for performance
                 drops.push_back({
                     rand() % COLS,
                     rand() % LINES,

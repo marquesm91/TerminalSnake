@@ -57,13 +57,20 @@ int showMenu(Infrastructure::Adapters::NCursesRenderer& renderer,
     int selected = 0;
     const int numOptions = 6;
     
+    // Set non-blocking read with 100ms timeout for animation
+    timeout(100);
+    
     while (!g_interrupt) {
         renderer.beginFrame();
         renderer.clear();
         renderer.drawMenu(selected, highscore);
         renderer.endFrame();
         
-        auto cmd = input.waitForCommand();
+        auto cmd = input.readCommand();
+        
+        if (cmd == Application::Ports::InputCommand::None) {
+            continue; // Animation update
+        }
         
         switch (cmd) {
             case Application::Ports::InputCommand::MoveUp:
@@ -77,9 +84,11 @@ int showMenu(Infrastructure::Adapters::NCursesRenderer& renderer,
                 break;
                 
             case Application::Ports::InputCommand::Confirm:
+                timeout(-1); // Restore blocking mode
                 return selected;
                 
             case Application::Ports::InputCommand::Quit:
+                timeout(-1); // Restore blocking mode
                 return 5;  // Exit
                 
             default:
@@ -87,6 +96,7 @@ int showMenu(Infrastructure::Adapters::NCursesRenderer& renderer,
         }
     }
     
+    timeout(-1); // Restore blocking mode
     return 5;  // Exit on interrupt
 }
 
@@ -273,9 +283,23 @@ int main() {
                 // Select difficulty
                 Domain::Difficulty diff = selectDifficulty(renderer, input);
                 
+                // Dynamic Board Size
+                int termWidth = renderer.screenWidth();
+                int termHeight = renderer.screenHeight();
+                
+                // Calculate max board size (subtracting borders and bars)
+                // Width: COLS - 2 (borders)
+                // Height: LINES - 2 (borders) - 1 (top bar) - 1 (bottom bar) = LINES - 4
+                int boardWidth = termWidth - 2;
+                int boardHeight = termHeight - 4;
+                
+                // Ensure minimum size
+                if (boardWidth < 20) boardWidth = 20;
+                if (boardHeight < 10) boardHeight = 10;
+                
                 // Configure game
                 Domain::GameConfig config = Domain::GameConfig::Builder()
-                    .boardSize(40, 20)
+                    .boardSize(boardWidth, boardHeight)
                     .difficulty(diff)
                     .initialSnakeSize(3)
                     .frameDelayMs(80)
