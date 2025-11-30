@@ -2,7 +2,7 @@
 
 The old and good Snake game now available to play in Terminal with a modern interface!
 
-![v1.0](http://i.imgur.com/pokjYD5.png)
+![Gameplay v1.4](assets/gameplay.png)
 
 ## ✨ Features
 
