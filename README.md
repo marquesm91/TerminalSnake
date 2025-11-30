@@ -1,25 +1,29 @@
 # Terminal Snake 🐍
-
+ 
 The old and good Snake game now available to play in Terminal with a modern interface!
-
-[![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue)](https://marquesm91.github.io/TerminalSnake/)
-[![Play WASM](https://img.shields.io/badge/Play-WebAssembly-green)](https://terminalsnake-leaderboard.web.app/wasm.html)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
+ 
+[![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue?style=for-the-badge&logo=github)](https://marquesm91.github.io/TerminalSnake/)
+[![Play WASM](https://img.shields.io/badge/Play-WebAssembly-green?style=for-the-badge&logo=webassembly)](https://terminalsnake-leaderboard.web.app/wasm.html)
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-purple?style=for-the-badge&logo=pwa)](https://terminalsnake-leaderboard.web.app/wasm.html)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+ 
 ![Gameplay v1.4](assets/gameplay.png)
-
+ 
 ## ✨ Features
-
+ 
 - **Modern Interface**: Colorful UI with status bar, styled borders, and game over screen
 - **Menu System**: Navigate through main menu, settings, and difficulty options
 - **Highscore System**: Persistent highscore saved locally
 - **Multiple Difficulty Levels**: Easy, Normal, Hard, and Insane modes
 - **Smooth Gameplay**: Optimized timing for fluid snake movement
 - **🌐 World Leaderboard**: Compete globally with Firebase-powered leaderboard
-- **🔐 Google Sign-In**: Authenticate using your Google account
+- **🔐 Social Login**: Sign in with Google, GitHub, or Twitter (Web)
+- **🏆 Gamification**: Earn badges, complete weekly challenges, and track stats
+- **📢 Social Sharing**: Share your score and earn bonus points
 - **🛡️ Anti-Cheat System**: Replay-based validation with deterministic PRNG
 - **🏗️ Clean Architecture**: DDD/Hexagonal architecture for maintainability
 - **🕹️ WebAssembly Build**: Play directly in your browser (no installation needed!)
+- **📱 PWA Support**: Install on your phone as a native app
 
 ## 📋 Prerequisites
 
@@ -236,6 +240,9 @@ make stats
 - [x] GitHub Pages landing page
 - [x] WebAssembly build (play in browser)
 - [x] Firebase Hosting with auto-deploy
+- [x] PWA Support (Manifest & Icons)
+- [ ] Gamification System (Badges, Weekly Challenges)
+- [ ] Social Login (GitHub, Twitter) & Sharing Bonuses
 - [ ] Deploy Firebase Cloud Functions (backend ready)
 - [ ] Implement Firebase adapters for Clean Architecture
 - [ ] Arduino platform support

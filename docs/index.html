@@ -1,21 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Terminal Snake - A modern snake game for the terminal with world leaderboard, anti-cheat system, and clean architecture.">
+    <meta name="description"
+        content="Terminal Snake - A modern snake game for the terminal with world leaderboard, anti-cheat system, and clean architecture.">
     <meta name="keywords" content="snake game, terminal game, ncurses, C++, clean architecture, leaderboard">
     <meta name="author" content="marquesm91">
-    
+
     <!-- Open Graph / Social Media -->
     <meta property="og:title" content="Terminal Snake">
-    <meta property="og:description" content="Classic snake game reimagined for the terminal with world leaderboard and anti-cheat replay system.">
+    <meta property="og:description"
+        content="Classic snake game reimagined for the terminal with world leaderboard and anti-cheat replay system.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://marquesm91.github.io/TerminalSnake/">
     <meta property="og:image" content="https://marquesm91.github.io/TerminalSnake/assets/preview.png">
-    
+
     <title>Terminal Snake - Classic Game Reimagined</title>
-    
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+        crossorigin="anonymous"></script>
+
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -28,13 +40,13 @@
             --accent-blue: #58a6ff;
             --border-color: #30363d;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
             background: var(--bg-primary);
@@ -42,7 +54,7 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
-        
+
         /* Hero Section */
         .hero {
             min-height: 100vh;
@@ -53,11 +65,11 @@
             text-align: center;
             padding: 2rem;
             position: relative;
-            background: 
+            background:
                 radial-gradient(ellipse at 50% 0%, rgba(63, 185, 80, 0.15) 0%, transparent 50%),
                 var(--bg-primary);
         }
-        
+
         .hero::before {
             content: '';
             position: absolute;
@@ -65,13 +77,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(63, 185, 80, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(63, 185, 80, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
             pointer-events: none;
         }
-        
+
         .logo {
             font-size: clamp(3rem, 10vw, 6rem);
             font-weight: 800;
@@ -83,14 +95,14 @@
             background-clip: text;
             text-shadow: 0 0 60px rgba(63, 185, 80, 0.4);
         }
-        
+
         .tagline {
             font-size: clamp(1rem, 3vw, 1.5rem);
             color: var(--text-secondary);
             margin-bottom: 2rem;
             max-width: 600px;
         }
-        
+
         /* Terminal Preview */
         .terminal {
             background: var(--bg-secondary);
@@ -100,11 +112,11 @@
             max-width: 700px;
             margin: 2rem auto;
             overflow: hidden;
-            box-shadow: 
+            box-shadow:
                 0 0 0 1px rgba(63, 185, 80, 0.1),
                 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        
+
         .terminal-header {
             background: var(--bg-primary);
             padding: 0.75rem 1rem;
@@ -113,24 +125,32 @@
             gap: 0.5rem;
             border-bottom: 1px solid var(--border-color);
         }
-        
+
         .terminal-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
         }
-        
-        .terminal-dot.red { background: var(--accent-red); }
-        .terminal-dot.yellow { background: var(--accent-yellow); }
-        .terminal-dot.green { background: var(--accent-green); }
-        
+
+        .terminal-dot.red {
+            background: var(--accent-red);
+        }
+
+        .terminal-dot.yellow {
+            background: var(--accent-yellow);
+        }
+
+        .terminal-dot.green {
+            background: var(--accent-green);
+        }
+
         .terminal-title {
             flex: 1;
             text-align: center;
             color: var(--text-secondary);
             font-size: 0.9rem;
         }
-        
+
         .terminal-body {
             padding: 1.5rem;
             font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
@@ -138,19 +158,31 @@
             line-height: 1.4;
             min-height: 300px;
         }
-        
+
         .game-board {
             color: var(--accent-green);
             white-space: pre;
             display: block;
             text-align: center;
         }
-        
-        .snake-head { color: #7ee787; font-weight: bold; }
-        .snake-body { color: var(--accent-green); }
-        .food { color: var(--accent-red); }
-        .wall { color: var(--text-secondary); }
-        
+
+        .snake-head {
+            color: #7ee787;
+            font-weight: bold;
+        }
+
+        .snake-body {
+            color: var(--accent-green);
+        }
+
+        .food {
+            color: var(--accent-red);
+        }
+
+        .wall {
+            color: var(--text-secondary);
+        }
+
         /* CTA Buttons */
         .cta-container {
             display: flex;
@@ -159,7 +191,7 @@
             justify-content: center;
             margin-top: 2rem;
         }
-        
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -171,41 +203,41 @@
             text-decoration: none;
             transition: all 0.2s ease;
         }
-        
+
         .btn-primary {
             background: var(--accent-green);
             color: var(--bg-primary);
         }
-        
+
         .btn-primary:hover {
             background: #2ea043;
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(63, 185, 80, 0.3);
         }
-        
+
         .btn-secondary {
             background: var(--bg-secondary);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
         }
-        
+
         .btn-secondary:hover {
             border-color: var(--text-secondary);
             transform: translateY(-2px);
         }
-        
+
         /* Features Section */
         .features {
             padding: 6rem 2rem;
             background: var(--bg-secondary);
         }
-        
+
         .section-title {
             text-align: center;
             font-size: 2.5rem;
             margin-bottom: 3rem;
         }
-        
+
         .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -213,7 +245,7 @@
             max-width: 1200px;
             margin: 0 auto;
         }
-        
+
         .feature-card {
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
@@ -221,37 +253,37 @@
             padding: 2rem;
             transition: all 0.3s ease;
         }
-        
+
         .feature-card:hover {
             border-color: var(--accent-green);
             transform: translateY(-4px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
-        
+
         .feature-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
         }
-        
+
         .feature-title {
             font-size: 1.25rem;
             margin-bottom: 0.5rem;
         }
-        
+
         .feature-desc {
             color: var(--text-secondary);
         }
-        
+
         /* Architecture Section */
         .architecture {
             padding: 6rem 2rem;
         }
-        
+
         .arch-container {
             max-width: 900px;
             margin: 0 auto;
         }
-        
+
         .code-block {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -262,17 +294,25 @@
             font-size: 0.875rem;
             line-height: 1.6;
         }
-        
-        .code-block .comment { color: #8b949e; }
-        .code-block .folder { color: var(--accent-blue); }
-        .code-block .file { color: var(--text-primary); }
-        
+
+        .code-block .comment {
+            color: #8b949e;
+        }
+
+        .code-block .folder {
+            color: var(--accent-blue);
+        }
+
+        .code-block .file {
+            color: var(--text-primary);
+        }
+
         /* Downloads Section */
         .downloads {
             padding: 6rem 2rem;
             background: var(--bg-primary);
         }
-        
+
         .download-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -280,7 +320,7 @@
             max-width: 1000px;
             margin: 0 auto;
         }
-        
+
         .download-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -289,31 +329,31 @@
             text-align: center;
             transition: all 0.2s ease;
         }
-        
+
         .download-card:hover {
             border-color: var(--accent-green);
             transform: translateY(-4px);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
-        
+
         .download-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
         }
-        
+
         .download-platform {
             font-size: 1.25rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
-        
+
         .download-variants {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
             margin-top: 1rem;
         }
-        
+
         .download-link {
             display: flex;
             align-items: center;
@@ -326,31 +366,31 @@
             font-size: 0.9rem;
             transition: all 0.2s ease;
         }
-        
+
         .download-link:hover {
             background: var(--accent-green);
             color: var(--bg-primary);
         }
-        
+
         .download-link .arch {
             color: var(--text-secondary);
             font-size: 0.8rem;
         }
-        
+
         .download-link:hover .arch {
             color: var(--bg-secondary);
         }
-        
+
         .package-managers {
             margin-top: 3rem;
             text-align: center;
         }
-        
+
         .package-managers h3 {
             margin-bottom: 1.5rem;
             color: var(--text-secondary);
         }
-        
+
         .package-commands {
             display: flex;
             flex-wrap: wrap;
@@ -359,7 +399,7 @@
             max-width: 800px;
             margin: 0 auto;
         }
-        
+
         .package-cmd {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -369,7 +409,7 @@
             font-size: 0.85rem;
             color: var(--text-secondary);
         }
-        
+
         .package-cmd span {
             color: var(--accent-green);
         }
@@ -379,7 +419,7 @@
             padding: 6rem 2rem;
             background: var(--bg-primary);
         }
-        
+
         .leaderboard-container {
             max-width: 600px;
             margin: 0 auto;
@@ -388,7 +428,7 @@
             border-radius: 16px;
             overflow: hidden;
         }
-        
+
         .leaderboard-header {
             display: flex;
             justify-content: space-between;
@@ -397,14 +437,14 @@
             border-bottom: 1px solid var(--border-color);
             background: linear-gradient(135deg, rgba(63, 185, 80, 0.1) 0%, transparent 100%);
         }
-        
+
         .leaderboard-header h3 {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             font-size: 1.25rem;
         }
-        
+
         .live-badge {
             display: inline-flex;
             align-items: center;
@@ -417,7 +457,7 @@
             font-weight: 600;
             text-transform: uppercase;
         }
-        
+
         .live-dot {
             width: 6px;
             height: 6px;
@@ -425,18 +465,25 @@
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
+
         .leaderboard-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-        
+
         .leaderboard-item {
             display: flex;
             align-items: center;
@@ -445,19 +492,27 @@
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s ease;
         }
-        
+
         .leaderboard-item:last-child {
             border-bottom: none;
         }
-        
+
         .leaderboard-item:hover {
             background: rgba(255, 255, 255, 0.02);
         }
-        
-        .leaderboard-item.gold { background: rgba(255, 215, 0, 0.05); }
-        .leaderboard-item.silver { background: rgba(192, 192, 192, 0.05); }
-        .leaderboard-item.bronze { background: rgba(205, 127, 50, 0.05); }
-        
+
+        .leaderboard-item.gold {
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        .leaderboard-item.silver {
+            background: rgba(192, 192, 192, 0.05);
+        }
+
+        .leaderboard-item.bronze {
+            background: rgba(205, 127, 50, 0.05);
+        }
+
         .rank {
             width: 32px;
             height: 32px;
@@ -468,12 +523,27 @@
             border-radius: 8px;
             font-size: 0.9rem;
         }
-        
-        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
-        .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: #000; }
-        .rank-3 { background: linear-gradient(135deg, #CD7F32, #8B4513); color: #fff; }
-        .rank-default { background: var(--bg-primary); color: var(--text-secondary); }
-        
+
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            color: #000;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #8B4513);
+            color: #fff;
+        }
+
+        .rank-default {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+        }
+
         .player-avatar {
             width: 40px;
             height: 40px;
@@ -486,43 +556,43 @@
             color: var(--accent-green);
             overflow: hidden;
         }
-        
+
         .player-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        
+
         .player-info {
             flex: 1;
         }
-        
+
         .player-name {
             font-weight: 600;
             font-size: 0.95rem;
         }
-        
+
         .player-difficulty {
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
-        
+
         .player-score {
             text-align: right;
         }
-        
+
         .score-value {
             font-weight: 700;
             font-size: 1.1rem;
             color: var(--accent-green);
         }
-        
+
         .score-label {
             font-size: 0.7rem;
             color: var(--text-secondary);
             text-transform: uppercase;
         }
-        
+
         .leaderboard-footer {
             padding: 1rem 1.5rem;
             text-align: center;
@@ -530,13 +600,13 @@
             font-size: 0.8rem;
             border-top: 1px solid var(--border-color);
         }
-        
+
         .leaderboard-loading {
             padding: 3rem;
             text-align: center;
             color: var(--text-secondary);
         }
-        
+
         .leaderboard-empty {
             padding: 3rem;
             text-align: center;
@@ -548,18 +618,18 @@
             padding: 6rem 2rem;
             background: var(--bg-secondary);
         }
-        
+
         .install-steps {
             max-width: 700px;
             margin: 0 auto;
         }
-        
+
         .step {
             display: flex;
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .step-number {
             flex-shrink: 0;
             width: 40px;
@@ -572,16 +642,16 @@
             justify-content: center;
             font-weight: bold;
         }
-        
+
         .step-content {
             flex: 1;
         }
-        
+
         .step-title {
             font-size: 1.125rem;
             margin-bottom: 0.5rem;
         }
-        
+
         .step-code {
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
@@ -592,7 +662,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .copy-btn {
             background: transparent;
             border: none;
@@ -601,18 +671,18 @@
             padding: 0.25rem;
             transition: color 0.2s;
         }
-        
+
         .copy-btn:hover {
             color: var(--accent-green);
         }
-        
+
         /* Footer */
         footer {
             padding: 3rem 2rem;
             text-align: center;
             border-top: 1px solid var(--border-color);
         }
-        
+
         .footer-links {
             display: flex;
             gap: 2rem;
@@ -620,66 +690,80 @@
             margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
-        
+
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
             transition: color 0.2s;
         }
-        
+
         .footer-links a:hover {
             color: var(--accent-green);
         }
-        
+
         .copyright {
             color: var(--text-secondary);
             font-size: 0.875rem;
         }
-        
+
         /* Responsive */
         @media (max-width: 768px) {
             .terminal-body {
                 font-size: 0.75rem;
                 padding: 1rem;
             }
-            
+
             .step {
                 flex-direction: column;
                 gap: 0.75rem;
             }
         }
-        
+
         /* Animations */
         @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
         }
-        
+
         .cursor {
             animation: blink 1s infinite;
         }
-        
+
         /* Snake Animation */
         @keyframes moveSnake {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(10px); }
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(10px);
+            }
         }
-        
+
         .animated-snake {
             display: inline-block;
             animation: moveSnake 0.5s ease-in-out infinite alternate;
         }
     </style>
 </head>
+
 <body>
     <!-- Hero Section -->
     <section class="hero">
         <h1 class="logo">🐍 Terminal Snake</h1>
         <p class="tagline">
-            Classic snake game reimagined for the terminal. 
+            Classic snake game reimagined for the terminal.
             Compete on the world leaderboard with anti-cheat replay validation.
         </p>
-        
+
         <!-- Terminal Preview -->
         <div class="terminal">
             <div class="terminal-header">
@@ -701,24 +785,27 @@
 <span style="color: #d29922;">Score: 120</span>      <span style="color: #8b949e;">High Score: 1,250</span></pre>
             </div>
         </div>
-        
+
         <div class="cta-container">
             <a href="#downloads" class="btn btn-primary">
                 <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M2.75 14A1.75 1.75 0 011 12.25v-2.5a.75.75 0 011.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 00.25-.25v-2.5a.75.75 0 011.5 0v2.5A1.75 1.75 0 0113.25 14H2.75z"/>
-                    <path d="M7.25 7.689V2a.75.75 0 011.5 0v5.689l1.97-1.969a.749.749 0 111.06 1.06l-3.25 3.25a.749.749 0 01-1.06 0L4.22 6.78a.749.749 0 111.06-1.06l1.97 1.969z"/>
+                    <path
+                        d="M2.75 14A1.75 1.75 0 011 12.25v-2.5a.75.75 0 011.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 00.25-.25v-2.5a.75.75 0 011.5 0v2.5A1.75 1.75 0 0113.25 14H2.75z" />
+                    <path
+                        d="M7.25 7.689V2a.75.75 0 011.5 0v5.689l1.97-1.969a.749.749 0 111.06 1.06l-3.25 3.25a.749.749 0 01-1.06 0L4.22 6.78a.749.749 0 111.06-1.06l1.97 1.969z" />
                 </svg>
                 Download Now
             </a>
             <a href="https://github.com/marquesm91/TerminalSnake" class="btn btn-secondary">
                 <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    <path
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
                 </svg>
                 View on GitHub
             </a>
         </div>
     </section>
-    
+
     <!-- Features Section -->
     <section class="features">
         <h2 class="section-title">Features</h2>
@@ -739,9 +826,16 @@
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔐</div>
-                <h3 class="feature-title">Google Authentication</h3>
+                <h3 class="feature-title">Social Login & Sharing</h3>
                 <p class="feature-desc">
-                    Secure OAuth 2.0 Device Flow for terminal environments. No browser hijacking needed.
+                    Sign in with Google, GitHub, or Twitter. Share your high scores to earn bonus points and badges.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏆</div>
+                <h3 class="feature-title">Gamification</h3>
+                <p class="feature-desc">
+                    Earn badges for achievements, maintain daily streaks, and compete in weekly challenges.
                 </p>
             </div>
             <div class="feature-card">
@@ -767,7 +861,7 @@
             </div>
         </div>
     </section>
-    
+
     <!-- Architecture Section -->
     <section class="architecture">
         <div class="arch-container">
@@ -776,21 +870,25 @@
                 Built following DDD and Hexagonal Architecture principles
             </p>
             <div class="code-block">
-<span class="folder">src/</span>
-├── <span class="folder">domain/</span>                  <span class="comment"># Business rules (zero dependencies)</span>
-│   ├── <span class="folder">entities/</span>            <span class="comment"># Snake, Food, Game aggregate</span>
-│   ├── <span class="folder">value_objects/</span>       <span class="comment"># Point, Direction, GameConfig</span>
-│   └── <span class="folder">services/</span>            <span class="comment"># RandomService, ReplayService</span>
-├── <span class="folder">application/</span>             <span class="comment"># Use cases and port interfaces</span>
-│   ├── <span class="folder">ports/</span>               <span class="comment"># IRenderer, IInput, IStorage...</span>
-│   └── <span class="folder">use_cases/</span>           <span class="comment"># PlayGameUseCase, SubmitScoreUseCase</span>
-└── <span class="folder">infrastructure/</span>          <span class="comment"># Concrete implementations</span>
-    ├── <span class="folder">adapters/</span>            <span class="comment"># NCursesRenderer, NCursesInput</span>
-    └── <span class="folder">persistence/</span>         <span class="comment"># FileStorage</span>
+                <span class="folder">src/</span>
+                ├── <span class="folder">domain/</span> <span class="comment"># Business rules (zero
+                    dependencies)</span>
+                │ ├── <span class="folder">entities/</span> <span class="comment"># Snake, Food, Game aggregate</span>
+                │ ├── <span class="folder">value_objects/</span> <span class="comment"># Point, Direction,
+                    GameConfig</span>
+                │ └── <span class="folder">services/</span> <span class="comment"># RandomService, ReplayService</span>
+                ├── <span class="folder">application/</span> <span class="comment"># Use cases and port
+                    interfaces</span>
+                │ ├── <span class="folder">ports/</span> <span class="comment"># IRenderer, IInput, IStorage...</span>
+                │ └── <span class="folder">use_cases/</span> <span class="comment"># PlayGameUseCase,
+                    SubmitScoreUseCase</span>
+                └── <span class="folder">infrastructure/</span> <span class="comment"># Concrete implementations</span>
+                ├── <span class="folder">adapters/</span> <span class="comment"># NCursesRenderer, NCursesInput</span>
+                └── <span class="folder">persistence/</span> <span class="comment"># FileStorage</span>
             </div>
         </div>
     </section>
-    
+
     <!-- Downloads Section -->
     <section class="downloads" id="downloads">
         <h2 class="section-title">Download</h2>
@@ -800,46 +898,51 @@
                 <div class="download-icon">🐧</div>
                 <div class="download-platform">Linux</div>
                 <div class="download-variants">
-                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-linux-x64.tar.gz" class="download-link">
+                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-linux-x64.tar.gz"
+                        class="download-link">
                         <span>Download</span>
                         <span class="arch">x64</span>
                     </a>
-                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-linux-arm64.tar.gz" class="download-link">
+                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-linux-arm64.tar.gz"
+                        class="download-link">
                         <span>Download</span>
                         <span class="arch">ARM64</span>
                     </a>
                 </div>
             </div>
-            
+
             <!-- macOS -->
             <div class="download-card">
                 <div class="download-icon">🍎</div>
                 <div class="download-platform">macOS</div>
                 <div class="download-variants">
-                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-macos-arm64.zip" class="download-link">
+                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-macos-arm64.zip"
+                        class="download-link">
                         <span>Download</span>
                         <span class="arch">Apple Silicon</span>
                     </a>
-                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-macos-x64.zip" class="download-link">
+                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-macos-x64.zip"
+                        class="download-link">
                         <span>Download</span>
                         <span class="arch">Intel</span>
                     </a>
                 </div>
             </div>
-            
+
             <!-- Windows -->
             <div class="download-card">
                 <div class="download-icon">🪟</div>
                 <div class="download-platform">Windows</div>
                 <div class="download-variants">
-                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-windows-x64.zip" class="download-link">
+                    <a href="https://github.com/marquesm91/TerminalSnake/releases/latest/download/tsnake-windows-x64.zip"
+                        class="download-link">
                         <span>Download</span>
                         <span class="arch">x64</span>
                     </a>
                 </div>
             </div>
         </div>
-        
+
         <!-- Package Managers -->
         <div class="package-managers">
             <h3>Or install via package manager</h3>
@@ -862,7 +965,7 @@
             </div>
         </div>
     </section>
-    
+
     <!-- Installation Section -->
     <section class="installation" id="installation">
         <h2 class="section-title">Quick Start</h2>
@@ -873,10 +976,13 @@
                     <h3 class="step-title">Clone the repository</h3>
                     <div class="step-code">
                         <code>git clone https://github.com/marquesm91/TerminalSnake.git</code>
-                        <button class="copy-btn" onclick="copyToClipboard('git clone https://github.com/marquesm91/TerminalSnake.git')">
+                        <button class="copy-btn"
+                            onclick="copyToClipboard('git clone https://github.com/marquesm91/TerminalSnake.git')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
-                                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
+                                <path
+                                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" />
+                                <path
+                                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" />
                             </svg>
                         </button>
                     </div>
@@ -888,10 +994,13 @@
                     <h3 class="step-title">Install dependencies</h3>
                     <div class="step-code">
                         <code>sudo apt install libncurses5-dev libcurl4-openssl-dev</code>
-                        <button class="copy-btn" onclick="copyToClipboard('sudo apt install libncurses5-dev libcurl4-openssl-dev')">
+                        <button class="copy-btn"
+                            onclick="copyToClipboard('sudo apt install libncurses5-dev libcurl4-openssl-dev')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
-                                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
+                                <path
+                                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" />
+                                <path
+                                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" />
                             </svg>
                         </button>
                     </div>
@@ -905,8 +1014,10 @@
                         <code>make clean_arch && ./bin/tsnake_clean</code>
                         <button class="copy-btn" onclick="copyToClipboard('make clean_arch && ./bin/tsnake_clean')">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
-                                <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
+                                <path
+                                    d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" />
+                                <path
+                                    d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" />
                             </svg>
                         </button>
                     </div>
@@ -914,7 +1025,7 @@
             </div>
         </div>
     </section>
-    
+
     <!-- Leaderboard Section -->
     <section class="leaderboard-section" id="leaderboard">
         <h2 class="section-title">🏆 Top Players This Week</h2>
@@ -939,7 +1050,7 @@
             <em>🔐 All scores verified through replay validation</em>
         </p>
     </section>
-    
+
     <!-- Footer -->
     <footer>
         <div class="footer-links">
@@ -951,20 +1062,20 @@
             Made with 🐍 by <a href="https://github.com/marquesm91" style="color: var(--accent-green);">marquesm91</a>
         </p>
     </footer>
-    
+
     <script>
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 // Could add visual feedback here
             });
         }
-        
+
         // =====================================================================
         // Live Leaderboard - Fetches from Firebase Cloud Functions
         // =====================================================================
-        
+
         const LEADERBOARD_API = 'https://us-central1-terminalsnake-leaderboard.cloudfunctions.net/getWeeklyLeaderboard';
-        
+
         // Demo data for when Firebase is not yet configured
         const DEMO_LEADERBOARD = [
             { rank: 1, displayName: 'SnakeMaster99', photoUrl: null, score: 15420, difficulty: 'Insane' },
@@ -973,32 +1084,32 @@
             { rank: 4, displayName: 'CLIGamer', photoUrl: null, score: 9800, difficulty: 'Normal' },
             { rank: 5, displayName: 'NCursesHero', photoUrl: null, score: 8750, difficulty: 'Normal' },
         ];
-        
+
         function getInitials(name) {
             return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
         }
-        
+
         function formatScore(score) {
             return score.toLocaleString();
         }
-        
+
         function getRankClass(rank) {
             if (rank === 1) return 'rank-1';
             if (rank === 2) return 'rank-2';
             if (rank === 3) return 'rank-3';
             return 'rank-default';
         }
-        
+
         function getRowClass(rank) {
             if (rank === 1) return 'gold';
             if (rank === 2) return 'silver';
             if (rank === 3) return 'bronze';
             return '';
         }
-        
+
         function renderLeaderboard(entries) {
             const list = document.getElementById('leaderboard-list');
-            
+
             if (!entries || entries.length === 0) {
                 list.innerHTML = `
                     <li class="leaderboard-empty">
@@ -1007,15 +1118,15 @@
                 `;
                 return;
             }
-            
+
             list.innerHTML = entries.map(entry => `
                 <li class="leaderboard-item ${getRowClass(entry.rank)}">
                     <div class="rank ${getRankClass(entry.rank)}">${entry.rank}</div>
                     <div class="player-avatar">
-                        ${entry.photoUrl 
-                            ? `<img src="${entry.photoUrl}" alt="${entry.displayName}" referrerpolicy="no-referrer">`
-                            : getInitials(entry.displayName)
-                        }
+                        ${entry.photoUrl
+                    ? `<img src="${entry.photoUrl}" alt="${entry.displayName}" referrerpolicy="no-referrer">`
+                    : getInitials(entry.displayName)
+                }
                     </div>
                     <div class="player-info">
                         <div class="player-name">${entry.displayName}</div>
@@ -1028,22 +1139,22 @@
                 </li>
             `).join('');
         }
-        
+
         function updateStatus(message) {
             const status = document.getElementById('leaderboard-status');
             status.textContent = message;
         }
-        
+
         async function fetchLeaderboard() {
             try {
                 const response = await fetch(`${LEADERBOARD_API}?limit=10`);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.entries && data.entries.length > 0) {
                     renderLeaderboard(data.entries);
                     const fetchedAt = new Date(data.fetchedAt);
@@ -1060,14 +1171,15 @@
                 updateStatus('Demo data - Download the game to compete!');
             }
         }
-        
+
         // Fetch leaderboard on page load
         document.addEventListener('DOMContentLoaded', () => {
             fetchLeaderboard();
-            
+
             // Refresh every 5 minutes
             setInterval(fetchLeaderboard, 5 * 60 * 1000);
         });
     </script>
 </body>
+
 </html>
