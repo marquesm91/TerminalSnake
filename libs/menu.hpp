@@ -1,10 +1,10 @@
 #ifndef MENU_H_
 #define MENU_H_
 
-#include <ncurses.h>
 #include <string>
 #include <vector>
 #include "common.hpp"
+#include "terminal.hpp"
 
 class Menu {
 
@@ -165,7 +165,6 @@ public:
                 selectedOption = (selectedOption + 1) % static_cast<int>(menuOptions.size());
                 return -1;  // Stay in menu
             case '\n':
-            case KEY_ENTER:
                 timeout(-1);  // Reset to blocking
                 return selectedOption;
             case 'q':

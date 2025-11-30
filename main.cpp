@@ -1,5 +1,5 @@
 #include <csignal>
-#include <ncurses.h>
+#include "./libs/terminal.hpp"
 #include <iostream>
 #include "./libs/game.hpp"
 #include "./libs/menu.hpp"
@@ -8,27 +8,15 @@
 #include "./libs/leaderboard.hpp"
 #include "./libs/anticheat.hpp"
 
-void initNCurses() {
-
-    initscr();              // Start curses mode
-    start_color();          // Start the color functionality
+void setupGame() {
+    initscr();              // Initialize terminal
+    start_color();          // Start color support
     cbreak();               // Line buffering disabled
-    use_default_colors();   // Use background color default
-    curs_set(0);            // hide cursor console
-    keypad(stdscr, TRUE);   // For Arrow Keys
-    noecho();               // Disable echo() in getch()
-    nodelay(stdscr, TRUE);  // Remove the getch() delay and use my own. 
-
-    // Modern color scheme
-    init_pair(1, COLOR_CYAN, COLOR_DEFAULT);      // Border color
-    init_pair(2, COLOR_GREEN, COLOR_DEFAULT);     // Snake head
-    init_pair(3, COLOR_GREEN, COLOR_DEFAULT);     // Snake body
-    init_pair(4, COLOR_RED, COLOR_DEFAULT);       // Food
-    init_pair(5, COLOR_YELLOW, COLOR_DEFAULT);    // Score
-    init_pair(6, COLOR_MAGENTA, COLOR_DEFAULT);   // Highscore
-    init_pair(7, COLOR_RED, COLOR_DEFAULT);       // Game over
-    init_pair(8, COLOR_WHITE, COLOR_BLUE);        // Status bar background
-
+    use_default_colors();   // Use default terminal colors
+    curs_set(0);            // Hide cursor
+    keypad(stdscr, TRUE);   // Enable arrow keys
+    noecho();               // Disable input echo
+    nodelay(stdscr, TRUE);  // Non-blocking input
 }
 
 volatile sig_atomic_t interruptFlag = 0; // catch Ctrl + C event
@@ -81,6 +69,8 @@ bool runGame(int level, Auth* auth, Leaderboard* leaderboard) {
 
         if (ch == 'Y' || ch == '\n'){
             playAgain = true;
+            // Clean terminal completely before next game
+            full_clear_screen();
         }
     }
     
@@ -107,8 +97,8 @@ void showMenu() {
         
         switch (choice) {
             case 0: // Start Game
-                clear();
-                nodelay(stdscr, TRUE);  // Disable blocking for game
+                full_clear_screen();       // Restart terminal for game
+                nodelay(stdscr, TRUE);     // Disable blocking for game
                 
                 while (runGame(menu.getDifficultyLevel(), &auth, &leaderboard)) {
                     // Reload highscore for next game
@@ -155,7 +145,7 @@ void showMenu() {
 
 int main()
 {
-    initNCurses();
+    setupGame();
     signal(SIGINT, interruptFunction);
 
     showMenu();
