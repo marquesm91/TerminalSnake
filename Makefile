@@ -160,8 +160,8 @@ help:
 	@echo "  make coverage     Generate coverage report"
 	@echo "  make loc          Count lines of code"
 	@echo "  make stats        Show project statistics"
-	@echo "  make clean        Remove build artifacts
-  make setup-emsdk  Install Emscripten SDK (WASM build tools)
+	@echo "  make clean        Remove build artifacts"
+	@echo "  make setup-emsdk  Install Emscripten SDK (WASM build tools)"
 
 # Setup Emscripten SDK
 setup-emsdk:
