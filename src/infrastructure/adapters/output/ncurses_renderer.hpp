@@ -40,7 +40,7 @@ enum class TerminalColor {
  */
 class NCursesRenderer : public Application::Ports::IRenderer {
 public:
-    NCursesRenderer() : initialized_(false), offsetX_(0), offsetY_(0) {}
+    NCursesRenderer() : initialized_(false), offsetX_(0), offsetY_(0), animationFrame_(0) {}
     
     ~NCursesRenderer() override {
         if (initialized_) {
@@ -87,11 +87,20 @@ public:
     }
     
     void beginFrame() override {
-        // Calcula offset para centralizar
-        offsetX_ = (COLS - 50) / 2;
-        offsetY_ = (LINES - 25) / 2;
+        // Adaptive Layout: Center the game area dynamically
+        // Game area is typically 50x25, but we can scale or just center it.
+        // For now, we center the 50x25 area.
+        int gameWidth = 50;
+        int gameHeight = 25;
+        
+        offsetX_ = (COLS - gameWidth) / 2;
+        offsetY_ = (LINES - gameHeight) / 2;
+        
         if (offsetX_ < 0) offsetX_ = 0;
         if (offsetY_ < 0) offsetY_ = 0;
+        
+        // Increment animation frame for effects
+        animationFrame_++;
     }
     
     void endFrame() override {
@@ -175,15 +184,39 @@ public:
         int centerY = LINES / 2;
         int centerX = COLS / 2;
         
+        // Draw box background
+        int boxWidth = 40;
+        int boxHeight = 12;
+        int startY = centerY - boxHeight / 2;
+        int startX = centerX - boxWidth / 2;
+        
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+        // Draw box border
+        mvaddch(startY, startX, ACS_ULCORNER);
+        mvaddch(startY, startX + boxWidth - 1, ACS_URCORNER);
+        mvaddch(startY + boxHeight - 1, startX, ACS_LLCORNER);
+        mvaddch(startY + boxHeight - 1, startX + boxWidth - 1, ACS_LRCORNER);
+        for (int j = 1; j < boxWidth - 1; j++) {
+            mvaddch(startY, startX + j, ACS_HLINE);
+            mvaddch(startY + boxHeight - 1, startX + j, ACS_HLINE);
+        }
+        for (int i = 1; i < boxHeight - 1; i++) {
+            mvaddch(startY + i, startX, ACS_VLINE);
+            mvaddch(startY + i, startX + boxWidth - 1, ACS_VLINE);
+        }
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
-        mvprintw(centerY - 2, centerX - 5, "GAME OVER!");
+        mvprintw(centerY - 3, centerX - 5, "GAME OVER!");
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
         
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
-        mvprintw(centerY, centerX - 8, "Final Score: %u", score);
+        mvprintw(centerY - 1, centerX - 8, "Final Score: %u", score);
         
         if (score >= highscore && score > 0) {
+            attron(A_BLINK | A_BOLD);
             mvprintw(centerY + 1, centerX - 7, "NEW HIGHSCORE!");
+            attroff(A_BLINK | A_BOLD);
         } else {
             mvprintw(centerY + 1, centerX - 6, "High: %u", highscore);
         }
@@ -192,32 +225,82 @@ public:
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
     }
     
+    void drawLogo(int startY, int startX) {
+        std::vector<std::string> logo = {
+            "  _______                  _             _   _____             _",
+            " |__   __|                (_)           | | / ____|           | |",
+            "    | | ___ _ __ _ __ ___  _ _ __   __ _| || (___  _ __   __ _| | _____ ",
+            "    | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | \\___ \\| '_ \\ / _` | |/ / _ \\",
+            "    | |  __/ |  | | | | | | | | | | (_| | | ____) | | | | (_| |   <  __/",
+            "    |_|\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_||_____/|_| |_|\\__,_|_|\\_\\___|"
+        };
+
+        int logoWidth = logo[0].length();
+        int logoStartX = startX - (logoWidth / 2);
+        
+        if (logoStartX < 0) logoStartX = 0;
+
+        // Animation: Shimmer effect
+        int shimmerPos = (animationFrame_ * 2) % (logoWidth + 20);
+
+        for (size_t i = 0; i < logo.size(); i++) {
+            for (size_t j = 0; j < logo[i].length(); j++) {
+                char c = logo[i][j];
+                if (c == ' ') continue;
+
+                int dist = abs((int)j - (shimmerPos - 10));
+                
+                if (dist < 3) {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD | A_REVERSE);
+                } else if (dist < 6) {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD);
+                } else {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
+                }
+                
+                mvaddch(startY + i, logoStartX + j, c);
+                
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD | A_REVERSE);
+            }
+        }
+
+        // Subtitle
+        if ((animationFrame_ / 5) % 2 == 0) {
+            attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        }
+        mvprintw(startY + logo.size() + 1, startX - 10, "Terminal Edition v3.0");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_BOLD);
+    }
+    
     void drawMenu(int selectedOption, uint32_t highscore) override {
         const char* options[] = {
             "Start Game",
             "Leaderboard",
             "Settings",
-            "Sign In",
+            "Sign In (Social)",
+            "Share (QR Code)",
             "Exit"
         };
-        const int numOptions = 5;
+        const int numOptions = 6;
         
-        int centerY = LINES / 2 - numOptions;
+        int centerY = LINES / 2;
         int centerX = COLS / 2;
         
-        // Título
-        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
-        mvprintw(centerY - 4, centerX - 6, "TERMINAL SNAKE");
-        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+        // Draw Logo
+        drawLogo(3, centerX);
+        
+        int menuStartY = centerY + 2;
         
         // Highscore
-        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
-        mvprintw(centerY - 2, centerX - 8, "High Score: %u", highscore);
-        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
+        mvprintw(menuStartY - 2, centerX - 8, "High Score: %u", highscore);
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
         
         // Opções
         for (int i = 0; i < numOptions; ++i) {
-            int y = centerY + i * 2;
+            int y = menuStartY + i * 2;
             int x = centerX - static_cast<int>(strlen(options[i])) / 2;
             
             if (i == selectedOption) {
@@ -230,6 +313,11 @@ public:
                 attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
             }
         }
+        
+        // Footer instructions
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        mvprintw(LINES - 2, centerX - 20, "Use Arrow Keys to navigate, Enter to select");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
     }
     
     void drawLeaderboard(const std::vector<Application::Ports::LeaderboardEntry>& entries = {}) override {
@@ -307,6 +395,7 @@ private:
     bool initialized_;
     int offsetX_;
     int offsetY_;
+    int animationFrame_;
 };
 
 } // namespace Adapters
