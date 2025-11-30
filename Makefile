@@ -11,7 +11,7 @@
 CC= g++ 
 CFLAGS= -std=c++11 -Wall -Wextra -Wpedantic -DWITH_FIREBASE
 
-EFLAGS= -lncurses -lcurl -lssl -lcrypto
+EFLAGS= -lncursesw -lcurl -lssl -lcrypto
 
 
 
