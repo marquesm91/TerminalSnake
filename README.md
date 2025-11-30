@@ -15,6 +15,8 @@ The old and good Snake game now available to play in Terminal with a modern inte
 - **Menu System**: Navigate through main menu, settings, and difficulty options
 - **Highscore System**: Persistent highscore saved locally
 - **Multiple Difficulty Levels**: Easy, Normal, Hard, and Insane modes
+- **🔥 Progressive Difficulty**: Game speed increases every 50 points
+- **🧱 Dynamic Obstacles**: New walls appear randomly every 100 points
 - **Smooth Gameplay**: Optimized timing for fluid snake movement
 - **🌐 World Leaderboard**: Compete globally with Firebase-powered leaderboard
 - **🔐 Social Login**: Sign in with Google, GitHub, or Twitter (Web)
