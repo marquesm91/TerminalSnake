@@ -1,28 +1,27 @@
 # Compiler, Flags, Directory Name and Executable Name
 CC= g++
-CFLAGS= -std=c++11
-ODIR= ../obj
+CFLAGS= -std=c++11 -Wall -Wextra
+ODIR= ./obj
 
-# Source codes and objects (Add here new .cpp tests separated by spaces)
-SRCS= testPoint.cpp
-EXEC= t1
+# Test executable
+TEST_ALL= runTests
 
-OBJS= $(patsubst %.cpp,$(ODIR)/%.o,$(SRCS))
+all: $(ODIR) $(TEST_ALL)
 
-all: $(EXEC)
+$(ODIR):
+	@mkdir -p $(ODIR)
 
-# Concatenate objects with your new directory
-$(OBJS): | $(ODIR) 
+# All tests in one executable (Catch requires single CATCH_CONFIG_MAIN)
+$(TEST_ALL): testPoint.cpp catch.hpp
+	$(CC) $(CFLAGS) testPoint.cpp -o $(TEST_ALL)
 
-# Compile and create objects
-$(ODIR)/%.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+# Run all tests
+test: all
+	@echo "Running all tests..."
+	./$(TEST_ALL)
 
-# Generate the executables
-$(EXEC): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
-	rm -rf *.settings
-
-# Delete objects, executables and new directories
+# Delete objects and executables
 clean:
-	rm -rf $(OBJS) $(ODIR) $(EDIR)/* $(EDIR)
+	rm -rf $(ODIR) $(TEST_ALL)
+
+.PHONY: all test clean

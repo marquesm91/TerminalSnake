@@ -5,108 +5,231 @@
 
 using namespace std;
 
+// Color pair definitions
+#define COLOR_BORDER 1
+#define COLOR_SNAKE_HEAD 2
+#define COLOR_SNAKE_BODY 3
+#define COLOR_FOOD 4
+#define COLOR_SCORE 5
+#define COLOR_HIGHSCORE 6
+#define COLOR_GAMEOVER 7
+#define COLOR_STATUS_BG 8
+
 class Board {
 
     int score;
+    int highscore;
+    int gameAreaTop;    // Where the game area starts (after status bar)
+
+    void drawStatusBar() {
+        // Draw a stylized status bar at the top
+        attron(COLOR_PAIR(COLOR_STATUS_BG) | A_BOLD);
+        for (int j = 0; j < COLS; j++) {
+            mvaddch(0, j, ' ');
+        }
+        attroff(COLOR_PAIR(COLOR_STATUS_BG) | A_BOLD);
+
+        // Score section
+        attron(COLOR_PAIR(COLOR_SCORE) | A_BOLD);
+        mvprintw(0, 2, " SCORE ");
+        attroff(A_BOLD);
+        attron(COLOR_PAIR(COLOR_SCORE));
+        printw(" %d ", score);
+        attroff(COLOR_PAIR(COLOR_SCORE));
+
+        // Size section
+        attron(COLOR_PAIR(COLOR_SNAKE_HEAD) | A_BOLD);
+        mvprintw(0, 18, " SIZE ");
+        attroff(A_BOLD);
+        attron(COLOR_PAIR(COLOR_SNAKE_HEAD));
+        printw(" 3 ");
+        attroff(COLOR_PAIR(COLOR_SNAKE_HEAD));
+
+        // Highscore section (right aligned)
+        attron(COLOR_PAIR(COLOR_HIGHSCORE) | A_BOLD);
+        mvprintw(0, COLS - 20, " HIGHSCORE ");
+        attroff(A_BOLD);
+        attron(COLOR_PAIR(COLOR_HIGHSCORE));
+        printw(" %d ", highscore);
+        attroff(COLOR_PAIR(COLOR_HIGHSCORE));
+    }
+
+    void drawGameBorder() {
+        attron(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
+        
+        // Top border with corners
+        mvaddch(gameAreaTop, 0, ACS_ULCORNER);
+        mvaddch(gameAreaTop, COLS - 1, ACS_URCORNER);
+        for (int j = 1; j < COLS - 1; j++) {
+            mvaddch(gameAreaTop, j, ACS_HLINE);
+        }
+
+        // Bottom border with corners
+        mvaddch(LINES - 1, 0, ACS_LLCORNER);
+        mvaddch(LINES - 1, COLS - 1, ACS_LRCORNER);
+        for (int j = 1; j < COLS - 1; j++) {
+            mvaddch(LINES - 1, j, ACS_HLINE);
+        }
+
+        // Side borders
+        for (int i = gameAreaTop + 1; i < LINES - 1; i++) {
+            mvaddch(i, 0, ACS_VLINE);
+            mvaddch(i, COLS - 1, ACS_VLINE);
+        }
+
+        attroff(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
+    }
 
 public:
 
-    Board() { 
+    Board(int initialHighscore = 0) { 
 
         score = 0;
+        highscore = initialHighscore;
+        gameAreaTop = 1;
 
-        // Print static information on board
-        mvprintw(0, 0, "SCORE: ");
-        mvprintw(0, 13, "SIZE: ");
-        mvprintw(0, 25, "H.POS: (");
-        mvprintw(0, 35, ",");
-        mvprintw(0, 38, ")  F.POS: (");
-        mvprintw(0, 51, ",");
-        mvprintw(0, 54, ")");
-        mvprintw(0, COLS-15, "HIGHSCORE: ");
-
-        // Print static board limits
-        for(int i = 1; i < LINES - 1; i++){
-            mvprintw(i, 0, "|"); mvprintw(i, COLS - 1, "|");    
-        }
-
-        for(int j = 1;  j < COLS - 1; j++){
-            mvprintw(1, j, "-"); mvprintw(LINES - 1, j, "-");
-        }
-
-        mvprintw(1,0,"+");
-        mvprintw(1,COLS - 1,"+");
-        mvprintw(LINES - 1,0,"+");
-        mvprintw(LINES - 1, COLS - 1,"+");
+        drawStatusBar();
+        drawGameBorder();
     }
 
     int getScore() const { return score; }
-    //void increaseScore(int level) { score += level; }
+    
+    void setPrintHighscore(int newHighscore) {
+        highscore = newHighscore;
+        attron(COLOR_PAIR(COLOR_HIGHSCORE));
+        mvprintw(0, COLS - 8, " %d   ", highscore);
+        attroff(COLOR_PAIR(COLOR_HIGHSCORE));
+    }
 
     void update() {
-        refresh(); // update board with ncurses help
+        refresh();
     }
 
     char getChar(const Point &p) const {
-        return mvinch(p.getX(), p.getY()) & A_CHARTEXT;
+        chtype ch = mvinch(p.getX(), p.getY());
+        char c = ch & A_CHARTEXT;
+        // Check for snake body (different chars now)
+        if (c == 'O' || c == 'o' || c == '@') return '@';
+        // Check for borders (ACS characters)
+        if ((ch & A_CHARTEXT) == (ACS_HLINE & A_CHARTEXT) || 
+            (ch & A_CHARTEXT) == (ACS_VLINE & A_CHARTEXT) ||
+            (ch & A_CHARTEXT) == (ACS_ULCORNER & A_CHARTEXT) ||
+            (ch & A_CHARTEXT) == (ACS_URCORNER & A_CHARTEXT) ||
+            (ch & A_CHARTEXT) == (ACS_LLCORNER & A_CHARTEXT) ||
+            (ch & A_CHARTEXT) == (ACS_LRCORNER & A_CHARTEXT) ||
+            c == '-' || c == '|') return '-';
+        // Check for food (ACS_DIAMOND)
+        if ((ch & A_CHARTEXT) == (ACS_DIAMOND & A_CHARTEXT)) return 'f';
+        return c;
     }
 
     void setPrintFood(const Point &f) {
-        
-        // Fill with empty space
-        mvprintw(0, 49, "  ");
-        mvprintw(0, 52, "  ");
-
-        // Now print Food position
-        mvprintw(0, 49, to_string(f.getX()).c_str());
-        mvprintw(0, 52, to_string(f.getY()).c_str());
-
-        // Now print Food on board
-        mvprintw(f.getX(), f.getY(), "f");
+        // Draw food with color and special character
+        attron(COLOR_PAIR(COLOR_FOOD) | A_BOLD);
+        mvaddch(f.getX(), f.getY(), ACS_DIAMOND);
+        attroff(COLOR_PAIR(COLOR_FOOD) | A_BOLD);
     }
 
     void setPrintSnake(const Body &b) { 
-        
-        // Fill with empty space
-        mvprintw(0, 33, "  ");
-        mvprintw(0, 36, "  ");
+        // Draw snake head with bright color
+        attron(COLOR_PAIR(COLOR_SNAKE_HEAD) | A_BOLD);
+        mvprintw(b.getHead().getX(), b.getHead().getY(), "O");
+        attroff(COLOR_PAIR(COLOR_SNAKE_HEAD) | A_BOLD);
 
-        // Now print Head position
-        mvprintw(0, 33, to_string(b.getHead().getX()).c_str());
-        mvprintw(0, 36, to_string(b.getHead().getY()).c_str());
-
-        mvprintw(b.getHead().getX(), b.getHead().getY(), "@");
-        // trick code to make a ilusion movement
+        // Clear tail position
         mvprintw(b.getTail().getX(), b.getTail().getY(), " ");
     }
 
     void setPrintScore(int level) {
         score = score + level;
-        mvprintw(0, 7, to_string(score - level).c_str());
+        attron(COLOR_PAIR(COLOR_SCORE));
+        mvprintw(0, 10, " %d   ", score - level);
+        attroff(COLOR_PAIR(COLOR_SCORE));
     }
 
-    void setPrintSize(const Body &b) { mvprintw(0, 19, to_string(b.getSize()).c_str()); }
+    void setPrintSize(const Body &b) { 
+        attron(COLOR_PAIR(COLOR_SNAKE_HEAD));
+        mvprintw(0, 25, " %d ", b.getSize());
+        attroff(COLOR_PAIR(COLOR_SNAKE_HEAD));
+    }
 
     void printGameOver(){
-        string strGameOver[7];
-
-        strGameOver[0] = " #####                                                               ###";
-        strGameOver[1] = "#     #    ##    #    #  ######       ####   #    #  ######  #####   ###";
-        strGameOver[2] = "#         #  #   ##  ##  #           #    #  #    #  #       #    #  ###";
-        strGameOver[3] = "#  ####  #    #  # ## #  #####       #    #  #    #  #####   #    #   # ";
-        strGameOver[4] = "#     #  ######  #    #  #           #    #  #    #  #       #####      ";
-        strGameOver[5] = "#     #  #    #  #    #  #           #    #   #  #   #       #   #   ###";
-        strGameOver[6] = " #####   #    #  #    #  ######       ####     ##    ######  #    #  ###";
-
-        mvprintw((LINES/2) - 4, (COLS/2) - 36, strGameOver[0].c_str());
-        mvprintw((LINES/2) - 3, (COLS/2) - 36, strGameOver[1].c_str());
-        mvprintw((LINES/2) - 2, (COLS/2) - 36, strGameOver[2].c_str());
-        mvprintw((LINES/2) - 1, (COLS/2) - 36, strGameOver[3].c_str());
-        mvprintw((LINES/2) + 0, (COLS/2) - 36, strGameOver[4].c_str());
-        mvprintw((LINES/2) + 1, (COLS/2) - 36, strGameOver[5].c_str());
-        mvprintw((LINES/2) + 2, (COLS/2) - 36, strGameOver[6].c_str());
+        // Draw semi-transparent overlay effect
+        attron(COLOR_PAIR(COLOR_GAMEOVER));
         
-        mvprintw((LINES/2) + 5, (COLS/2) - 36,"Try again? (Y/n)");
+        int boxWidth = 50;
+        int boxHeight = 15;
+        int startY = (LINES / 2) - (boxHeight / 2);
+        int startX = (COLS / 2) - (boxWidth / 2);
+
+        // Draw box background
+        for (int i = 0; i < boxHeight; i++) {
+            for (int j = 0; j < boxWidth; j++) {
+                mvaddch(startY + i, startX + j, ' ');
+            }
+        }
+
+        // Draw box border
+        attron(A_BOLD);
+        mvaddch(startY, startX, ACS_ULCORNER);
+        mvaddch(startY, startX + boxWidth - 1, ACS_URCORNER);
+        mvaddch(startY + boxHeight - 1, startX, ACS_LLCORNER);
+        mvaddch(startY + boxHeight - 1, startX + boxWidth - 1, ACS_LRCORNER);
+        
+        for (int j = 1; j < boxWidth - 1; j++) {
+            mvaddch(startY, startX + j, ACS_HLINE);
+            mvaddch(startY + boxHeight - 1, startX + j, ACS_HLINE);
+        }
+        for (int i = 1; i < boxHeight - 1; i++) {
+            mvaddch(startY + i, startX, ACS_VLINE);
+            mvaddch(startY + i, startX + boxWidth - 1, ACS_VLINE);
+        }
+
+        // Game Over text (ASCII art style)
+        string gameOver[5];
+        gameOver[0] = " ####   ###  #   # ####";
+        gameOver[1] = "#      #   # ## ## #   ";
+        gameOver[2] = "#  ## ##### # # # ###  ";
+        gameOver[3] = "#   # #   # #   # #    ";
+        gameOver[4] = " ###  #   # #   # #### ";
+
+        string overText[5];
+        overText[0] = " ###  #   # #### ####";
+        overText[1] = "#   # #   # #    #   #";
+        overText[2] = "#   #  # #  ###  ####";
+        overText[3] = "#   #  # #  #    #  #";
+        overText[4] = " ###    #   #### #   #";
+
+        int textStartY = startY + 2;
+        int textStartX = startX + 3;
+
+        attron(COLOR_PAIR(COLOR_GAMEOVER) | A_BOLD);
+        for (int i = 0; i < 5; i++) {
+            mvprintw(textStartY + i, textStartX, "%s", gameOver[i].c_str());
+            mvprintw(textStartY + i, textStartX + 25, "%s", overText[i].c_str());
+        }
+
+        // Final score display
+        attroff(COLOR_PAIR(COLOR_GAMEOVER));
+        attron(COLOR_PAIR(COLOR_SCORE) | A_BOLD);
+        mvprintw(startY + 8, startX + (boxWidth / 2) - 10, "FINAL SCORE: %d", score);
+        attroff(COLOR_PAIR(COLOR_SCORE));
+
+        attron(COLOR_PAIR(COLOR_HIGHSCORE) | A_BOLD);
+        mvprintw(startY + 9, startX + (boxWidth / 2) - 10, "HIGHSCORE: %d", highscore);
+        attroff(COLOR_PAIR(COLOR_HIGHSCORE));
+
+        // New highscore message
+        if (score > highscore) {
+            attron(COLOR_PAIR(COLOR_FOOD) | A_BOLD | A_BLINK);
+            mvprintw(startY + 11, startX + (boxWidth / 2) - 10, "** NEW HIGHSCORE! **");
+            attroff(COLOR_PAIR(COLOR_FOOD) | A_BOLD | A_BLINK);
+        }
+
+        // Retry prompt
+        attron(COLOR_PAIR(COLOR_BORDER));
+        mvprintw(startY + boxHeight - 2, startX + (boxWidth / 2) - 10, "Play again? (Y/n)");
+        attroff(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
     }
 
 };
