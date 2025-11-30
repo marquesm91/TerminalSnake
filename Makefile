@@ -9,7 +9,7 @@
 
 # Compiler and flags
 CC= g++ 
-CFLAGS= -std=c++11 -Wall -Wextra -Wpedantic
+CFLAGS= -std=c++11 -Wall -Wextra -Wpedantic -DWITH_FIREBASE
 
 EFLAGS= -lncurses -lcurl -lssl -lcrypto
 

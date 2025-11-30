@@ -274,19 +274,91 @@ public:
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_BOLD);
     }
     
+    struct Drop { int x, y, speed, len; };
+    void drawBackgroundEffect() {
+        // Matrix Digital Rain Effect
+        static std::vector<Drop> drops;
+        
+        // Initialize drops if empty
+        if (drops.empty()) {
+            for (int i = 0; i < COLS / 2; ++i) {
+                drops.push_back({
+                    rand() % COLS,
+                    rand() % LINES,
+                    (rand() % 2) + 1, // Speed 1 or 2
+                    (rand() % 10) + 5 // Length 5-15
+                });
+            }
+        }
+        
+        // Update and Draw drops
+        for (auto& drop : drops) {
+            // Draw the tail
+            for (int i = 0; i < drop.len; ++i) {
+                int y = drop.y - i;
+                if (y >= 0 && y < LINES) {
+                    if (i == 0) {
+                        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD); // Bright head
+                        mvaddch(y, drop.x, (rand() % 2 == 0) ? '1' : '0');
+                        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+                    } else {
+                        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_DIM); // Dim tail
+                        mvaddch(y, drop.x, (rand() % 2 == 0) ? '1' : '0');
+                        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_DIM);
+                    }
+                }
+            }
+            
+            // Move drop
+            if (animationFrame_ % (3 - drop.speed) == 0) {
+                drop.y++;
+            }
+            
+            // Reset if out of screen
+            if (drop.y - drop.len > LINES) {
+                drop.y = 0;
+                drop.x = rand() % COLS;
+            }
+        }
+    }
+
+    void drawTicker() {
+        // Simulate a live ticker
+        int tickerWidth = COLS;
+        int tickerY = LINES - 1;
+        
+        // Background for ticker
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+        for(int i=0; i<tickerWidth; i++) mvaddch(tickerY, i, ' ');
+        
+        // Scrolling text (using animationFrame)
+        std::string msg = "🔴 LIVE: 1,337 Players Online  |  🏆 New Record: @Neo - 9,999 pts  |  🔥 @Trinity is on a streak (5 wins)  |  ";
+        int msgLen = msg.length();
+        int scrollPos = (animationFrame_ / 2) % msgLen;
+        
+        std::string displayMsg = msg.substr(scrollPos) + msg.substr(0, scrollPos);
+        if (displayMsg.length() > (size_t)tickerWidth) displayMsg = displayMsg.substr(0, tickerWidth);
+        
+        mvprintw(tickerY, 0, "%s", displayMsg.c_str());
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+    }
+
     void drawMenu(int selectedOption, uint32_t highscore) override {
         const char* options[] = {
-            "Start Game",
-            "Leaderboard",
-            "Settings",
-            "Sign In (Social)",
-            "Share (QR Code)",
-            "Exit"
+            "🎮 Start Game",
+            "🏆 Leaderboard",
+            "⚙️  Settings",
+            "👤 Sign In (Social)",
+            "📱 Share (QR Code)",
+            "🚪 Exit"
         };
         const int numOptions = 6;
         
         int centerY = LINES / 2;
         int centerX = COLS / 2;
+        
+        // Draw Animated Background
+        drawBackgroundEffect();
         
         // Draw Logo
         drawLogo(3, centerX);
@@ -301,11 +373,13 @@ public:
         // Opções
         for (int i = 0; i < numOptions; ++i) {
             int y = menuStartY + i * 2;
-            int x = centerX - static_cast<int>(strlen(options[i])) / 2;
+            // Adjust center calculation for UTF-8 length (approximate)
+            int len = strlen(options[i]) - 3; // Subtract bytes for emoji roughly
+            int x = centerX - len / 2;
             
             if (i == selectedOption) {
                 attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
-                mvprintw(y, x - 2, "> %s <", options[i]);
+                mvprintw(y, x - 2, " %s ", options[i]);
                 attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
             } else {
                 attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
@@ -314,24 +388,25 @@ public:
             }
         }
         
-        // Footer instructions
-        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
-        mvprintw(LINES - 2, centerX - 20, "Use Arrow Keys to navigate, Enter to select");
-        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        // Draw Live Ticker
+        drawTicker();
     }
     
     void drawLeaderboard(const std::vector<Application::Ports::LeaderboardEntry>& entries = {}) override {
+        // Draw Animated Background for Leaderboard too
+        drawBackgroundEffect();
+        
         int centerY = LINES / 2;
         int centerX = COLS / 2;
         
         // Title
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
-        mvprintw(3, centerX - 10, "=== WORLD LEADERBOARD ===");
+        mvprintw(3, centerX - 10, "=== 🌍 WORLD LEADERBOARD ===");
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
         
         // Column headers
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_UNDERLINE);
-        mvprintw(5, centerX - 25, "%-4s %-20s %-8s %-10s %-8s", 
+        mvprintw(5, centerX - 30, "%-4s %-20s %-8s %-10s %-8s", 
                  "Rank", "Player", "Score", "Difficulty", "Verified");
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_UNDERLINE);
         
@@ -341,44 +416,33 @@ public:
             mvprintw(centerY + 1, centerX - 12, "Sign in to view leaderboard");
             attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
         } else {
+            // ... (existing entry drawing code) ...
             // Display entries (max 15 to fit screen)
             int maxEntries = std::min(static_cast<int>(entries.size()), 15);
             for (int i = 0; i < maxEntries; ++i) {
                 const auto& entry = entries[static_cast<size_t>(i)];
                 int y = 7 + i;
                 
-                // Truncate display name if needed
                 std::string displayName = entry.displayName;
-                if (displayName.length() > 18) {
-                    displayName = displayName.substr(0, 15) + "...";
-                }
+                if (displayName.length() > 18) displayName = displayName.substr(0, 15) + "...";
                 
-                // Highlight top 3
-                if (i < 3) {
-                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
-                } else {
-                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
-                }
+                if (i < 3) attron(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+                else attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
                 
-                mvprintw(y, centerX - 25, "%-4d %-20s %-8u %-10s %-8s",
-                         i + 1,
-                         displayName.c_str(),
-                         entry.score,
-                         entry.difficulty.c_str(),
-                         entry.verified ? "Yes" : "No");
+                mvprintw(y, centerX - 30, "%-4d %-20s %-8u %-10s %-8s",
+                         i + 1, displayName.c_str(), entry.score, entry.difficulty.c_str(), entry.verified ? "Yes" : "No");
                 
-                if (i < 3) {
-                    attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
-                } else {
-                    attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
-                }
+                if (i < 3) attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+                else attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
             }
         }
         
         // Footer
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
-        mvprintw(LINES - 2, centerX - 12, "Press any key to go back");
+        mvprintw(LINES - 3, centerX - 20, "[F] Follow Player   [C] Challenge   [Q] Back");
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        
+        drawTicker();
     }
     
     void drawMessage(const char* message) override {
