@@ -27,11 +27,11 @@
 #define TRUE 1
 #define FALSE 0
 
-// Key codes
-#define KEY_UP      0x103
-#define KEY_DOWN    0x102
-#define KEY_LEFT    0x104
-#define KEY_RIGHT   0x105
+// Key codes - MUST match common.hpp: UP=3, DOWN=2, LEFT=4, RIGHT=5
+#define KEY_UP      3
+#define KEY_DOWN    2
+#define KEY_LEFT    4
+#define KEY_RIGHT   5
 #define KEY_ENTER   0x157
 
 // Colors
@@ -51,13 +51,23 @@
 #define A_REVERSE   (1 << 9)
 #define A_UNDERLINE (1 << 10)
 
-// ACS characters (box drawing)
-#define ACS_ULCORNER '+'
-#define ACS_URCORNER '+'
-#define ACS_LLCORNER '+'
-#define ACS_LRCORNER '+'
-#define ACS_HLINE    '-'
-#define ACS_VLINE    '|'
+// ACS characters - Use Unicode box-drawing characters for better visuals
+// These work well with xterm.js and modern browsers
+#define ACS_ULCORNER 0x250C  // ┌
+#define ACS_URCORNER 0x2510  // ┐
+#define ACS_LLCORNER 0x2514  // └
+#define ACS_LRCORNER 0x2518  // ┘
+#define ACS_HLINE    0x2500  // ─
+#define ACS_VLINE    0x2502  // │
+#define ACS_LTEE     0x251C  // ├
+#define ACS_RTEE     0x2524  // ┤
+#define ACS_TTEE     0x252C  // ┬
+#define ACS_BTEE     0x2534  // ┴
+#define ACS_PLUS     0x253C  // ┼
+#define ACS_BLOCK    0x2588  // █ Full block
+#define ACS_DIAMOND  0x25C6  // ◆
+#define ACS_CKBOARD  0x2592  // ▒
+#define ACS_BULLET   0x25CF  // ●
 
 // ============================================================================
 // Types
@@ -65,6 +75,15 @@
 
 typedef unsigned int chtype;
 typedef chtype attr_t;
+
+// Screen cell: character + attributes
+struct ScreenCell {
+    chtype ch;       // Character (may be Unicode codepoint)
+    attr_t attrs;    // Attributes (color, bold, etc)
+    int colorPair;   // Color pair number
+    
+    ScreenCell() : ch(' '), attrs(0), colorPair(0) {}
+};
 
 struct WINDOW {
     int rows;
@@ -87,10 +106,26 @@ namespace WebCurses {
     static int timeout_ms = -1;
     static std::queue<int> inputQueue;
     
+    // Screen buffer - maintains state between refreshes
+    static ScreenCell screenBuffer[24][80];
+    static bool bufferDirty = true;
+    
     // Color pairs: [pair_num] = {fg, bg}
     static int colorPairs[64][2];
     static int currentColorPair = 0;
     static attr_t currentAttrs = 0;
+}
+
+// Forward declarations
+inline int addch(chtype ch);
+inline int move(int y, int x);
+
+// ============================================================================
+// Input Queue API (called from main_web.cpp)
+// ============================================================================
+
+inline void web_curses_push_key(int key) {
+    WebCurses::inputQueue.push(key);
 }
 
 // ============================================================================
@@ -147,7 +182,18 @@ inline WINDOW* initscr() {
     WebCurses::stdscr->attrs = A_NORMAL;
     WebCurses::stdscr->colorPair = 0;
     
+    // Initialize screen buffer with spaces
+    for (int y = 0; y < WebCurses::LINES; y++) {
+        for (int x = 0; x < WebCurses::COLS; x++) {
+            WebCurses::screenBuffer[y][x].ch = ' ';
+            WebCurses::screenBuffer[y][x].attrs = 0;
+            WebCurses::screenBuffer[y][x].colorPair = 0;
+        }
+    }
+    WebCurses::bufferDirty = true;
+    
     js_terminal_set_size(WebCurses::COLS, WebCurses::LINES);
+    js_hide_cursor();
     return WebCurses::stdscr;
 }
 
@@ -206,26 +252,109 @@ inline void timeout(int delay) {
     WebCurses::timeout_ms = delay;
 }
 
+// Helper to convert Unicode codepoint to UTF-8
+inline void codepoint_to_utf8(unsigned int cp, char* buf) {
+    if (cp < 0x80) {
+        buf[0] = static_cast<char>(cp);
+        buf[1] = '\0';
+    } else if (cp < 0x800) {
+        buf[0] = static_cast<char>(0xC0 | (cp >> 6));
+        buf[1] = static_cast<char>(0x80 | (cp & 0x3F));
+        buf[2] = '\0';
+    } else if (cp < 0x10000) {
+        buf[0] = static_cast<char>(0xE0 | (cp >> 12));
+        buf[1] = static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        buf[2] = static_cast<char>(0x80 | (cp & 0x3F));
+        buf[3] = '\0';
+    } else {
+        buf[0] = static_cast<char>(0xF0 | (cp >> 18));
+        buf[1] = static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        buf[2] = static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        buf[3] = static_cast<char>(0x80 | (cp & 0x3F));
+        buf[4] = '\0';
+    }
+}
+
 inline int clear() {
     js_terminal_clear();
+    // Clear the buffer too
+    for (int y = 0; y < WebCurses::LINES; y++) {
+        for (int x = 0; x < WebCurses::COLS; x++) {
+            WebCurses::screenBuffer[y][x].ch = ' ';
+            WebCurses::screenBuffer[y][x].attrs = 0;
+            WebCurses::screenBuffer[y][x].colorPair = 0;
+        }
+    }
+    WebCurses::bufferDirty = true;
     return OK;
+}
+
+// Helper function to render buffer to terminal
+inline void renderBuffer() {
+    // Move to home position
+    js_terminal_write("\x1b[H");
+    
+    char utf8buf[5];
+    int lastColorPair = -1;
+    attr_t lastAttrs = 0;
+    
+    for (int y = 0; y < WebCurses::LINES; y++) {
+        for (int x = 0; x < WebCurses::COLS; x++) {
+            ScreenCell& cell = WebCurses::screenBuffer[y][x];
+            
+            // Apply color/attribute changes if needed
+            if (cell.colorPair != lastColorPair || cell.attrs != lastAttrs) {
+                // Reset attributes
+                js_terminal_write("\x1b[0m");
+                
+                // Apply color pair
+                if (cell.colorPair > 0 && cell.colorPair < 64) {
+                    int fg = WebCurses::colorPairs[cell.colorPair][0];
+                    int bg = WebCurses::colorPairs[cell.colorPair][1];
+                    
+                    char colorBuf[32];
+                    if (fg >= 0 && fg <= 7) {
+                        snprintf(colorBuf, sizeof(colorBuf), "\x1b[%dm", 30 + fg);
+                        js_terminal_write(colorBuf);
+                    }
+                    if (bg >= 0 && bg <= 7) {
+                        snprintf(colorBuf, sizeof(colorBuf), "\x1b[%dm", 40 + bg);
+                        js_terminal_write(colorBuf);
+                    }
+                }
+                
+                // Apply bold
+                if (cell.attrs & A_BOLD) {
+                    js_terminal_write("\x1b[1m");
+                }
+                
+                lastColorPair = cell.colorPair;
+                lastAttrs = cell.attrs;
+            }
+            
+            // Write character
+            codepoint_to_utf8(cell.ch & 0xFFFFFF, utf8buf);
+            js_terminal_write(utf8buf);
+        }
+        // Move to next line
+        if (y < WebCurses::LINES - 1) {
+            js_terminal_write("\r\n");
+        }
+    }
+    
+    // Reset attributes
+    js_terminal_write("\x1b[0m");
 }
 
 inline int refresh() {
-    // Terminal is immediately updated, no buffering needed
-    return OK;
-}
-
-inline int move(int y, int x) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", y + 1, x + 1);
-    js_terminal_write(buf);
-    if (WebCurses::stdscr) {
-        WebCurses::stdscr->curY = y;
-        WebCurses::stdscr->curX = x;
+    if (WebCurses::bufferDirty) {
+        renderBuffer();
+        WebCurses::bufferDirty = false;
     }
     return OK;
 }
+
+
 
 // Get ANSI color code
 inline const char* getAnsiColor(int color, bool foreground) {
@@ -290,6 +419,11 @@ inline int attron(attr_t attrs) {
 
 inline int attroff(attr_t attrs) {
     WebCurses::currentAttrs &= ~attrs;
+    
+    // Update currentColorPair based on remaining attributes
+    // Assuming color pair is stored in the lower 8 bits of attributes
+    WebCurses::currentColorPair = WebCurses::currentAttrs & 0xFF;
+
     // Reset all attributes and reapply remaining
     js_terminal_write("\x1b[0m");
     if (WebCurses::currentAttrs) {
@@ -300,16 +434,6 @@ inline int attroff(attr_t attrs) {
 
 #define COLOR_PAIR(n) ((n) & 0xFF)
 
-inline int printw(const char* fmt, ...) {
-    char buf[1024];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    js_terminal_write(buf);
-    return OK;
-}
-
 inline int mvprintw(int y, int x, const char* fmt, ...) {
     move(y, x);
     char buf[1024];
@@ -317,13 +441,57 @@ inline int mvprintw(int y, int x, const char* fmt, ...) {
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    js_terminal_write(buf);
+    
+    // Write each character to the buffer
+    for (int i = 0; buf[i] != '\0'; i++) {
+        addch(static_cast<unsigned char>(buf[i]));
+    }
+    return OK;
+}
+
+inline int printw(const char* fmt, ...) {
+    char buf[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    
+    // Write each character to the buffer
+    for (int i = 0; buf[i] != '\0'; i++) {
+        addch(static_cast<unsigned char>(buf[i]));
+    }
+    return OK;
+}
+
+inline int move(int y, int x) {
+    // Just update cursor position in our buffer
+    if (WebCurses::stdscr) {
+        WebCurses::stdscr->curY = y;
+        WebCurses::stdscr->curX = x;
+    }
     return OK;
 }
 
 inline int addch(chtype ch) {
-    char buf[2] = { static_cast<char>(ch & 0xFF), '\0' };
-    js_terminal_write(buf);
+    // Write to screen buffer instead of directly to terminal
+    int y = WebCurses::stdscr ? WebCurses::stdscr->curY : 0;
+    int x = WebCurses::stdscr ? WebCurses::stdscr->curX : 0;
+    
+    if (y >= 0 && y < WebCurses::LINES && x >= 0 && x < WebCurses::COLS) {
+        WebCurses::screenBuffer[y][x].ch = ch;
+        WebCurses::screenBuffer[y][x].attrs = WebCurses::currentAttrs;
+        WebCurses::screenBuffer[y][x].colorPair = WebCurses::currentColorPair;
+        WebCurses::bufferDirty = true;
+        
+        // Advance cursor
+        if (WebCurses::stdscr) {
+            WebCurses::stdscr->curX++;
+            if (WebCurses::stdscr->curX >= WebCurses::COLS) {
+                WebCurses::stdscr->curX = 0;
+                WebCurses::stdscr->curY++;
+            }
+        }
+    }
     return OK;
 }
 
@@ -348,6 +516,14 @@ inline int mvvline(int y, int x, chtype ch, int n) {
 }
 
 inline int getch() {
+    // First check internal queue (keys pushed from handleInput)
+    if (!WebCurses::inputQueue.empty()) {
+        int key = WebCurses::inputQueue.front();
+        WebCurses::inputQueue.pop();
+        return key;
+    }
+    
+    // Then check JavaScript queue
     int key = js_get_key();
     
     // Handle timeout/nodelay
@@ -361,9 +537,9 @@ inline int getch() {
 // Additional ncurses functions needed by the game
 
 inline chtype mvinch(int y, int x) {
-    // This function reads a character from the screen
-    // In our web implementation, we can't easily read back from xterm.js
-    // The game should track screen state separately
+    if (y >= 0 && y < WebCurses::LINES && x >= 0 && x < WebCurses::COLS) {
+        return WebCurses::screenBuffer[y][x].ch | WebCurses::screenBuffer[y][x].attrs;
+    }
     return ' ';
 }
 
@@ -408,9 +584,6 @@ inline int getmaxx(WINDOW* /* win */) {
 
 // A_CHARTEXT mask for extracting character from chtype
 #define A_CHARTEXT 0xFF
-
-// ACS_DIAMOND for food
-#define ACS_DIAMOND '*'
 
 // Global variables accessible from game code
 #define stdscr WebCurses::stdscr

@@ -6,9 +6,10 @@ ODIR= ./obj
 # Test executables
 TEST_POINT= test_point
 TEST_TERMINAL= test_terminal
+TEST_WEB_CURSES= test_web_curses
 TEST_ALL= test_all
 
-all: $(ODIR) $(TEST_POINT) $(TEST_TERMINAL) $(TEST_ALL)
+all: $(ODIR) $(TEST_POINT) $(TEST_TERMINAL) $(TEST_WEB_CURSES) $(TEST_ALL)
 
 $(ODIR):
 	@mkdir -p $(ODIR)
@@ -21,8 +22,12 @@ $(TEST_POINT): testPoint.cpp catch.hpp
 $(TEST_TERMINAL): testTerminal.cpp catch.hpp
 	$(CC) $(CFLAGS) testTerminal.cpp -o $(TEST_TERMINAL)
 
+# Individual test - Web Curses
+$(TEST_WEB_CURSES): testWebCurses.cpp catch.hpp
+	$(CC) $(CFLAGS) -I. -Imocks testWebCurses.cpp -o $(TEST_WEB_CURSES)
+
 # Combined test runner (runs all tests)
-$(TEST_ALL): $(TEST_POINT) $(TEST_TERMINAL)
+$(TEST_ALL): $(TEST_POINT) $(TEST_TERMINAL) $(TEST_WEB_CURSES)
 	@echo "Combined test runner created"
 	@touch $(TEST_ALL)
 
@@ -37,6 +42,11 @@ test: all
 	@echo "Running Terminal Tests..."
 	@echo "================================"
 	./$(TEST_TERMINAL)
+	@echo ""
+	@echo "================================"
+	@echo "Running Web Curses Tests..."
+	@echo "================================"
+	./$(TEST_WEB_CURSES)
 
 # Run only point tests
 test-point: $(TEST_POINT)

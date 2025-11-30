@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reproduction Test</title>
+</head>
+<body>
+    <div id="result">Running...</div>
+    <script>
+        // Mock terminal functions
+        window.terminalWrite = function(str) {};
+        window.terminalClear = function() {};
+        window.terminalSetSize = function(cols, rows) {};
+        window.getKey = function() { return -1; };
+
+        let gameInterval;
+        let testResult = "Failed to run";
+
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('result').innerText = msg;
+        }
+
+        async function runTest() {
+            try {
+                // Load WASM
+                const script = document.createElement('script');
+                script.src = 'game.js';
+                document.head.appendChild(script);
+
+                await new Promise(resolve => {
+                    script.onload = () => {
+                        const checkModule = setInterval(() => {
+                            if (typeof Module !== 'undefined' && Module._initGame) {
+                                clearInterval(checkModule);
+                                resolve();
+                            }
+                        }, 100);
+                    };
+                });
+
+                // Init game
+                Module._initGame(1);
+                
+                // Move right until we hit the wall (80 cols)
+                // Snake starts at center (approx 40, 12)
+                // We need to move right ~40 times.
+                
+                let steps = 0;
+                const maxSteps = 100;
+                let gameOver = false;
+
+                // Force move right
+                Module._handleInput(5); // RIGHT
+
+                const interval = setInterval(() => {
+                    steps++;
+                    // Keep pushing Right to be sure
+                    Module._handleInput(5); 
+
+                    const result = Module._gameFrame();
+                    const score = Module._getScore();
+                    const size = Module._getSnakeSize();
+                    
+                    // Check if game over
+                    if (result === 1) {
+                        gameOver = true;
+                        clearInterval(interval);
+                        log("Test Passed: Game Over triggered at step " + steps);
+                    }
+
+                    if (steps > maxSteps) {
+                        clearInterval(interval);
+                        log("Test Failed: Snake passed the border without dying!");
+                    }
+                }, 10);
+
+            } catch (e) {
+                log("Error: " + e.message);
+            }
+        }
+
+        window.onload = runTest;
+    </script>
+</body>
+</html>

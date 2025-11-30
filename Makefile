@@ -38,14 +38,15 @@ OBJS_CLEAN= $(ODIR)/src_main.o
 # =====================================================================
 
 # Default: build all versions
-all: legacy modular clean_arch
+# Default: build all versions
+all: ncurses web_curses arduino
 	@echo ""
 	@echo "✅ All versions built successfully!"
 	@echo ""
 	@echo "Run any version:"
-	@echo "  ./bin/tsnake          # v1.0 Legacy"
-	@echo "  ./bin/tsnake_modular  # v2.0 Modular"
-	@echo "  ./bin/tsnake_clean    # v3.0 Clean Architecture"
+	@echo "  ./bin/tsnake_clean    # ncurses (Terminal)"
+	@echo "  python3 -m http.server -d firebase/public 8080 # web_curses"
+	@echo "  (Arduino version is in ./arduino)"
 
 # Build and run shortcuts
 run: run-clean
@@ -57,6 +58,27 @@ run-clean: clean_arch
 	./$(EDIR)/$(EXEC_CLEAN)
 
 # Individual version builds
+ncurses: clean_arch
+	@echo "Built: bin/tsnake_clean (ncurses Terminal)"
+
+web_curses:
+	@echo "Building WebAssembly version..."
+	@./web/build_wasm.sh
+
+arduino:
+	@echo "Checking Arduino version..."
+	@if [ -f "arduino/snake_arduino.ino" ]; then \
+		echo "Arduino sketch found at arduino/snake_arduino.ino"; \
+		if command -v arduino-cli >/dev/null 2>&1; then \
+			arduino-cli compile --fqbn arduino:avr:uno arduino/snake_arduino.ino; \
+		else \
+			echo "arduino-cli not found, skipping compilation check."; \
+		fi \
+	else \
+		echo "Error: Arduino sketch not found!"; \
+		exit 1; \
+	fi
+
 legacy: $(EDIR)/$(EXEC_LEGACY)
 	@echo "Built: bin/tsnake (v1.0 Legacy)"
 

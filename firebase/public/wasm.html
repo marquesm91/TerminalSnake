@@ -90,23 +90,24 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 0;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
             gap: 0;
             overflow: hidden;
         }
         
         #terminal-container {
-            flex: 1;
-            width: 100%;
-            border: none;
-            border-radius: 0;
+            width: auto;
+            max-width: 100%;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
             overflow: hidden;
             background: #000;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
         }
         
         #terminal {
-            width: 100%;
-            height: 100%;
         }
         
         .loading-overlay {
@@ -330,21 +331,21 @@
         let keyBuffer = [];
         let wasmModule = null;
         
-        // Key codes that match web_curses.hpp
+        // Key codes that match common.hpp: UP=3, DOWN=2, LEFT=4, RIGHT=5
         const KEY_CODES = {
-            'ArrowUp': 0x103,
-            'ArrowDown': 0x102,
-            'ArrowLeft': 0x104,
-            'ArrowRight': 0x105,
+            'ArrowUp': 3,
+            'ArrowDown': 2,
+            'ArrowLeft': 4,
+            'ArrowRight': 5,
             'Enter': 0x157,
-            'w': 0x103,
-            'W': 0x103,
-            's': 0x102,
-            'S': 0x102,
-            'a': 0x104,
-            'A': 0x104,
-            'd': 0x105,
-            'D': 0x105,
+            'w': 3,
+            'W': 3,
+            's': 2,
+            'S': 2,
+            'a': 4,
+            'A': 4,
+            'd': 5,
+            'D': 5,
             'r': 'r'.charCodeAt(0),
             'R': 'R'.charCodeAt(0)
         };
@@ -356,7 +357,8 @@
                 cursorBlink: false,
                 cursorStyle: 'block',
                 fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-                fontSize: 14,
+                fontSize: 18,
+                lineHeight: 1.0,
                 theme: {
                     background: '#000000',
                     foreground: '#e6edf3',
@@ -381,9 +383,6 @@
                 }
             });
             
-            fitAddon = new FitAddon.FitAddon();
-            term.loadAddon(fitAddon);
-            
             // Try to load WebGL addon for better performance
             try {
                 const webglAddon = new WebglAddon.WebglAddon();
@@ -394,12 +393,6 @@
             
             const container = document.getElementById('terminal');
             term.open(container);
-            fitAddon.fit();
-            
-            // Handle window resize
-            window.addEventListener('resize', () => {
-                fitAddon.fit();
-            });
             
             // Capture keyboard input
             term.onKey(({ key, domEvent }) => {
@@ -524,6 +517,9 @@
             }
         }
         
+        let gameInterval = null;
+        let gameOver = false;
+        
         async function loadWasm() {
             updateProgress('Setting up terminal...');
             initTerminal();
@@ -533,67 +529,30 @@
             
             try {
                 // Check if WASM file exists
-                const wasmCheck = await fetch('tsnake.wasm', { method: 'HEAD' });
+                const wasmCheck = await fetch('game.wasm', { method: 'HEAD' });
                 if (!wasmCheck.ok) {
-                    throw new Error('WASM module not found. Run "make" in the web/ directory to build.');
+                    throw new Error('WASM module not found (game.wasm). Build with Emscripten first.');
                 }
                 
-                updateProgress('Initializing game...');
+                updateProgress('Initializing game engine...');
                 
-                // Load the Emscripten module
+                // Load the Emscripten module (non-modular build)
                 const script = document.createElement('script');
-                script.src = 'tsnake.js';
+                script.src = 'game.js';
                 
-                script.onload = async () => {
-                    try {
-                        // createSnakeModule is defined by Emscripten with MODULARIZE=1
-                        wasmModule = await createSnakeModule({
-                            print: (text) => console.log(text),
-                            printErr: (text) => console.error(text),
-                            onRuntimeInitialized: () => {
-                                console.log('WASM Runtime initialized');
-                            }
-                        });
-                        
-                        // Start the game
-                        if (wasmModule._startGame) {
-                            wasmModule._startGame();
+                script.onload = () => {
+                    // Wait for Module to be ready
+                    const checkModule = setInterval(() => {
+                        if (typeof Module !== 'undefined' && Module._initGame) {
+                            clearInterval(checkModule);
+                            startGame();
                         }
-                        
-                        // Start the game loop (run at ~60fps)
-                        setInterval(() => {
-                            // Process any pending key input
-                            while (keyBuffer.length > 0) {
-                                const key = keyBuffer.shift();
-                                if (wasmModule._handleKey) {
-                                    // Map arrow key codes to our custom codes
-                                    let mappedKey = key;
-                                    if (key === 0x103) mappedKey = 1000; // Up
-                                    else if (key === 0x102) mappedKey = 1001; // Down
-                                    else if (key === 0x104) mappedKey = 1002; // Left
-                                    else if (key === 0x105) mappedKey = 1003; // Right
-                                    wasmModule._handleKey(mappedKey);
-                                }
-                            }
-                            
-                            // Run game loop
-                            if (wasmModule._runGameLoop) {
-                                wasmModule._runGameLoop();
-                            }
-                        }, 16); // ~60fps
-                        
-                        hideLoading();
-                        term.focus();
-                        
-                    } catch (e) {
-                        console.error('Module initialization error:', e);
-                        showError('Failed to initialize WASM module: ' + e.message);
-                    }
+                    }, 100);
                 };
                 
                 script.onerror = (e) => {
                     console.error('Script load error:', e);
-                    showError('Failed to load tsnake.js. Make sure to build with Emscripten first.');
+                    showError('Failed to load game.js');
                 };
                 
                 document.head.appendChild(script);
@@ -602,6 +561,46 @@
                 console.error('WASM load error:', e);
                 showError(e.message);
             }
+        }
+        
+        function startGame() {
+            updateProgress('Starting game...');
+            
+            // Initialize game with level 1
+            Module._initGame(1);
+            gameOver = false;
+            
+            hideLoading();
+            term.focus();
+            
+            // Game loop - call gameFrame at ~60fps
+            // The C++ code handles timing with DELAY (80ms)
+            if (gameInterval) clearInterval(gameInterval);
+            
+            gameInterval = setInterval(() => {
+                // Process keyboard input
+                while (keyBuffer.length > 0) {
+                    const key = keyBuffer.shift();
+                    
+                    // Handle restart
+                    if (key === 'r'.charCodeAt(0) || key === 'R'.charCodeAt(0)) {
+                        if (gameOver) {
+                            Module._resetGame();
+                            gameOver = false;
+                        }
+                        continue;
+                    }
+                    
+                    // Send input to game
+                    Module._handleInput(key);
+                }
+                
+                // Run game frame
+                const result = Module._gameFrame();
+                if (result === 1) {
+                    gameOver = true;
+                }
+            }, 10); // Run faster, C++ handles actual timing
         }
         
         // Start loading when page is ready

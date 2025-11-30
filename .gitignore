@@ -1,6 +1,6 @@
 .DS_Store
-bin
-obj
+bin/
+obj/
 /*.md
 !README.md
 !LICENSE.md
@@ -10,3 +10,21 @@ obj
 tests/test_*
 tests/*.o
 tests/obj/
+tests/runTests*
+
+# Emscripten SDK (local installation)
+emsdk/
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Firebase
+.firebase/
+*/.firebase/
+firebase-debug.log
+
+# WASM build artifacts (generated files)
+firebase/public/*.js
+firebase/public/*.wasm
+!firebase/public/app.js

@@ -49,7 +49,7 @@ echo "🔨 Building WebAssembly module..."
 cd "$SCRIPT_DIR"
 
 make clean 2>/dev/null || true
-make release
+make all
 
 echo ""
 echo "✅ Build complete!"
