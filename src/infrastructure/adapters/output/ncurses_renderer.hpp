@@ -13,6 +13,7 @@
 #include <cstring>
 #include <string>
 #include <algorithm>
+#include <clocale>
 #include "application/ports/renderer_port.hpp"
 
 namespace Snake {
@@ -49,6 +50,9 @@ public:
     
     void init() override {
         if (initialized_) return;
+        
+        // Enable UTF-8 support
+        setlocale(LC_ALL, "");
         
         initscr();
         cbreak();
@@ -126,17 +130,17 @@ public:
         bool first = true;
         for (const auto& segment : snake) {
             if (first) {
-                // Cabeça
+                // Cabeça (Unicode: ◆ Black Diamond Suit)
                 attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
-                mvaddch(offsetY_ + 1 + segment.y(), 
-                       offsetX_ + 1 + segment.x(), '@');
+                mvprintw(offsetY_ + 1 + segment.y(), 
+                       offsetX_ + 1 + segment.x(), "\u25C6");
                 attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
                 first = false;
             } else {
-                // Corpo
+                // Corpo (Unicode: ■ Black Square)
                 attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
-                mvaddch(offsetY_ + 1 + segment.y(), 
-                       offsetX_ + 1 + segment.x(), 'o');
+                mvprintw(offsetY_ + 1 + segment.y(), 
+                       offsetX_ + 1 + segment.x(), "\u25A0");
                 attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
             }
         }
@@ -145,9 +149,10 @@ public:
     void drawFood(const Domain::FoodEntity& food) override {
         if (!food.isActive()) return;
         
+        // Comida (Unicode: ● Black Circle)
         attron(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
-        mvaddch(offsetY_ + 1 + food.position().y(),
-               offsetX_ + 1 + food.position().x(), '*');
+        mvprintw(offsetY_ + 1 + food.position().y(),
+               offsetX_ + 1 + food.position().x(), "\u25CF");
         attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
     }
     
