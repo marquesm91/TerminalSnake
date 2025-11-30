@@ -55,7 +55,7 @@ int showMenu(Infrastructure::Adapters::NCursesRenderer& renderer,
              uint32_t highscore) {
     
     int selected = 0;
-    const int numOptions = 5;
+    const int numOptions = 6;
     
     while (!g_interrupt) {
         renderer.beginFrame();
@@ -80,14 +80,14 @@ int showMenu(Infrastructure::Adapters::NCursesRenderer& renderer,
                 return selected;
                 
             case Application::Ports::InputCommand::Quit:
-                return 4;  // Exit
+                return 5;  // Exit
                 
             default:
                 break;
         }
     }
     
-    return 4;  // Exit on interrupt
+    return 5;  // Exit on interrupt
 }
 
 /**
@@ -360,7 +360,16 @@ int main() {
 #endif
                 break;
                 
-            case 4:  // Exit
+            case 4:  // Share (QR Code)
+                renderer.beginFrame();
+                renderer.clear();
+                renderer.drawMessage("Scan QR Code to share!");
+                // TODO: Render actual QR Code
+                renderer.endFrame();
+                input.waitForCommand();
+                break;
+                
+            case 5:  // Exit
             default:
                 running = false;
                 break;
