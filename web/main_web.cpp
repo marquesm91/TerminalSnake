@@ -4,467 +4,409 @@
  * 
  * This is a simplified version of main.cpp that runs in the browser
  * using Emscripten and xterm.js for terminal emulation.
+ * 
+ * Uses simple C arrays instead of std::list to avoid WASM initialization issues.
  */
 
 #include <emscripten.h>
-#include <emscripten/html5.h>
-
-// Use our web-compatible ncurses replacement
-#include "web_curses.hpp"
-
-// Include game components (they use ncurses functions now mapped to web_curses)
-#include "../libs/common.hpp"
-#include "../libs/point.hpp"
-#include "../libs/clock.hpp"
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 // ============================================================================
-// Simplified game classes for web (avoiding complex includes)
+// Constants
 // ============================================================================
 
-// Simple food class
-class WebFood : public Point {
-public:
-    WebFood() {}
-    
-    void getFood() {
-        // Simple random using emscripten_random
-        int x = 2 + static_cast<int>(emscripten_random() * (LINES - 4));
-        int y = 1 + static_cast<int>(emscripten_random() * (COLS - 3));
-        this->x = x;
-        this->y = y;
+const int SCREEN_COLS = 60;
+const int SCREEN_ROWS = 22;
+const int MAX_SNAKE_LEN = 500;
+const int GAME_AREA_TOP = 1;
+
+// Direction constants
+const int DIR_UP = 0;
+const int DIR_DOWN = 1;
+const int DIR_LEFT = 2;
+const int DIR_RIGHT = 3;
+
+// ============================================================================
+// JavaScript Interface (using EM_JS)
+// ============================================================================
+
+EM_JS(void, js_clear, (), {
+    if (typeof window !== 'undefined' && window.terminalClear) {
+        window.terminalClear();
     }
+});
+
+EM_JS(void, js_mvprintw, (int y, int x, const char* str), {
+    if (typeof window !== 'undefined' && window.terminalWrite) {
+        window.terminalWrite(y, x, UTF8ToString(str));
+    }
+});
+
+EM_JS(void, js_refresh, (), {
+    if (typeof window !== 'undefined' && window.terminalRefresh) {
+        window.terminalRefresh();
+    }
+});
+
+EM_JS(int, js_getch, (), {
+    if (typeof window !== 'undefined' && window.getKey) {
+        return window.getKey();
+    }
+    return -1;
+});
+
+// ============================================================================
+// Game State Structure
+// ============================================================================
+
+struct Point {
+    int x;
+    int y;
 };
-
-// Simple body class
-#include <list>
-class WebBody {
-private:
-    std::list<Point> body;
-    int direction;
-    int disableDirection;
-
-public:
-    WebBody() {
-        body.push_front(Point(5, 5));
-        body.push_front(Point(5, 6));
-        body.push_front(Point(5, 7));
-        validateDirection(RIGHT);
-    }
-
-    void validateDirection(int dir) {
-        if (dir != ERR && dir != disableDirection && dir >= 2 && dir <= 5) {
-            this->direction = dir;
-            switch (this->direction) {
-                case UP: disableDirection = DOWN; break;
-                case DOWN: disableDirection = UP; break;
-                case LEFT: disableDirection = RIGHT; break;
-                case RIGHT: disableDirection = LEFT; break;
-            }
-        }
-    }
-
-    Point investigatePosition() {
-        Point newHead;
-        switch (this->direction) {
-            case UP: 
-                newHead.setX(getHead().getX() - 1);
-                newHead.setY(getHead().getY()); 
-                break;
-            case DOWN: 
-                newHead.setX(getHead().getX() + 1);
-                newHead.setY(getHead().getY()); 
-                break;
-            case LEFT: 
-                newHead.setX(getHead().getX()); 
-                newHead.setY(getHead().getY() - 1); 
-                break;
-            case RIGHT:	
-                newHead.setX(getHead().getX()); 
-                newHead.setY(getHead().getY() + 1); 
-                break;
-        }
-        return newHead;
-    }
-
-    Point getHead() const { return body.front(); }
-    void setHead(const Point& p) { body.push_front(p); }
-    Point getTail() const { return body.back(); }
-    void removeTail() { body.pop_back(); }
-    int getSize() const { return body.size(); }
-    int getDirection() const { return direction; }
-};
-
-// ============================================================================
-// Game State
-// ============================================================================
 
 struct GameState {
-    WebBody* body;
-    WebFood* food;
+    // Snake body as simple arrays
+    Point snake[MAX_SNAKE_LEN];
+    int snakeLen;
+    
+    // Food position
+    Point food;
+    
+    // Direction: DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT
+    int direction;
+    int disableDirection;
+    
+    // Game stats
     int score;
     int level;
+    int frameCount;
+    
+    // Game state flags
     bool gameOver;
     bool initialized;
-    int frameCount;
-    int gameAreaTop;
     
     // Screen buffer for collision detection
-    char screenBuffer[25][80];
-    
-    GameState() : body(nullptr), food(nullptr), score(0), level(1), 
-                  gameOver(false), initialized(false), frameCount(0), gameAreaTop(1) {
-        // Clear screen buffer
-        for (int i = 0; i < 25; i++) {
-            for (int j = 0; j < 80; j++) {
-                screenBuffer[i][j] = ' ';
-            }
-        }
-    }
+    char screen[SCREEN_ROWS][SCREEN_COLS];
 };
 
-static GameState gameState;
+// Global game state (zero-initialized)
+static GameState game = {};
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+void clearScreen() {
+    for (int y = 0; y < SCREEN_ROWS; y++) {
+        for (int x = 0; x < SCREEN_COLS; x++) {
+            game.screen[y][x] = ' ';
+        }
+    }
+}
+
+void placeFood() {
+    // Find a random valid position for food
+    int attempts = 0;
+    do {
+        game.food.x = 1 + (rand() % (SCREEN_COLS - 2));
+        game.food.y = GAME_AREA_TOP + 1 + (rand() % (SCREEN_ROWS - GAME_AREA_TOP - 2));
+        attempts++;
+    } while (game.screen[game.food.y][game.food.x] != ' ' && attempts < 100);
+}
 
 // ============================================================================
 // Drawing Functions
 // ============================================================================
 
 void drawBorder() {
-    attron(COLOR_PAIR(1));  // Cyan
+    // Top and bottom borders
+    char topBot[SCREEN_COLS + 1];
+    memset(topBot, '#', SCREEN_COLS);
+    topBot[SCREEN_COLS] = '\0';
     
-    int top = gameState.gameAreaTop;
+    js_mvprintw(GAME_AREA_TOP, 0, topBot);
+    js_mvprintw(SCREEN_ROWS - 1, 0, topBot);
     
-    // Top border
-    mvaddch(top, 0, '+');
-    mvaddch(top, COLS - 1, '+');
-    for (int j = 1; j < COLS - 1; j++) {
-        mvaddch(top, j, '-');
-        gameState.screenBuffer[top][j] = '-';
-    }
-    
-    // Bottom border
-    mvaddch(LINES - 1, 0, '+');
-    mvaddch(LINES - 1, COLS - 1, '+');
-    for (int j = 1; j < COLS - 1; j++) {
-        mvaddch(LINES - 1, j, '-');
-        gameState.screenBuffer[LINES - 1][j] = '-';
+    // Mark in buffer
+    for (int x = 0; x < SCREEN_COLS; x++) {
+        game.screen[GAME_AREA_TOP][x] = '#';
+        game.screen[SCREEN_ROWS - 1][x] = '#';
     }
     
     // Side borders
-    for (int i = top + 1; i < LINES - 1; i++) {
-        mvaddch(i, 0, '|');
-        mvaddch(i, COLS - 1, '|');
-        gameState.screenBuffer[i][0] = '|';
-        gameState.screenBuffer[i][COLS - 1] = '|';
+    for (int y = GAME_AREA_TOP + 1; y < SCREEN_ROWS - 1; y++) {
+        js_mvprintw(y, 0, "#");
+        js_mvprintw(y, SCREEN_COLS - 1, "#");
+        game.screen[y][0] = '#';
+        game.screen[y][SCREEN_COLS - 1] = '#';
     }
-    
-    // Corners
-    gameState.screenBuffer[top][0] = '+';
-    gameState.screenBuffer[top][COLS - 1] = '+';
-    gameState.screenBuffer[LINES - 1][0] = '+';
-    gameState.screenBuffer[LINES - 1][COLS - 1] = '+';
-    
-    attroff(COLOR_PAIR(1));
 }
 
 void drawStatusBar() {
-    attron(COLOR_PAIR(5));  // Yellow
-    mvprintw(0, 2, "SCORE: %d", gameState.score);
-    attroff(COLOR_PAIR(5));
-    
-    attron(COLOR_PAIR(2));  // Green
-    mvprintw(0, 20, "SIZE: %d", gameState.body ? gameState.body->getSize() : 3);
-    attroff(COLOR_PAIR(2));
-    
-    attron(COLOR_PAIR(6));  // Magenta
-    mvprintw(0, 35, "LEVEL: %d", gameState.level);
-    attroff(COLOR_PAIR(6));
-    
-    attron(COLOR_PAIR(1));  // Cyan
-    mvprintw(0, COLS - 20, "WASM BUILD");
-    attroff(COLOR_PAIR(1));
+    char status[SCREEN_COLS + 1];
+    snprintf(status, sizeof(status), "SCORE: %-6d  SIZE: %-4d  LEVEL: %d    [WASM BUILD]", 
+             game.score, game.snakeLen, game.level);
+    js_mvprintw(0, 0, status);
 }
 
 void drawFood() {
-    if (!gameState.food) return;
-    
-    int x = gameState.food->getX();
-    int y = gameState.food->getY();
-    
-    // Clear old food position if any
-    attron(COLOR_PAIR(4));  // Red
-    mvaddch(x, y, '*');
-    attroff(COLOR_PAIR(4));
-    
-    gameState.screenBuffer[x][y] = 'f';
+    js_mvprintw(game.food.y, game.food.x, "*");
+    game.screen[game.food.y][game.food.x] = '*';
 }
 
 void drawSnake() {
-    if (!gameState.body) return;
-    
-    Point head = gameState.body->getHead();
-    Point tail = gameState.body->getTail();
+    // Draw body
+    for (int i = 1; i < game.snakeLen; i++) {
+        js_mvprintw(game.snake[i].y, game.snake[i].x, "o");
+        game.screen[game.snake[i].y][game.snake[i].x] = 'o';
+    }
     
     // Draw head
-    attron(COLOR_PAIR(2));  // Green
-    mvaddch(head.getX(), head.getY(), 'O');
-    attroff(COLOR_PAIR(2));
-    
-    gameState.screenBuffer[head.getX()][head.getY()] = '@';
-    
-    // Clear tail (only if not eating)
-    mvaddch(tail.getX(), tail.getY(), ' ');
-    gameState.screenBuffer[tail.getX()][tail.getY()] = ' ';
+    js_mvprintw(game.snake[0].y, game.snake[0].x, "O");
+    game.screen[game.snake[0].y][game.snake[0].x] = '@';
 }
 
 void drawGameOver() {
-    int centerY = LINES / 2;
-    int centerX = COLS / 2;
+    int centerY = SCREEN_ROWS / 2;
+    int centerX = SCREEN_COLS / 2 - 10;
     
-    attron(COLOR_PAIR(7));  // Red
-    mvprintw(centerY - 2, centerX - 10, "+--------------------+");
-    mvprintw(centerY - 1, centerX - 10, "|     GAME OVER!     |");
-    mvprintw(centerY,     centerX - 10, "|  Score: %-6d     |", gameState.score);
-    mvprintw(centerY + 1, centerX - 10, "|  Press R to retry  |");
-    mvprintw(centerY + 2, centerX - 10, "+--------------------+");
-    attroff(COLOR_PAIR(7));
-}
-
-void validateFood() {
-    if (!gameState.food) return;
+    js_mvprintw(centerY - 1, centerX, "+--------------------+");
+    js_mvprintw(centerY,     centerX, "|     GAME OVER!     |");
     
-    gameState.food->getFood();
+    char scoreLine[32];
+    snprintf(scoreLine, sizeof(scoreLine), "|  Score: %-6d     |", game.score);
+    js_mvprintw(centerY + 1, centerX, scoreLine);
     
-    int x = gameState.food->getX();
-    int y = gameState.food->getY();
-    
-    // Check if food spawned on snake or border
-    if (x >= 0 && x < 25 && y >= 0 && y < 80) {
-        char ch = gameState.screenBuffer[x][y];
-        if (ch == '@' || ch == '-' || ch == '|' || ch == '+') {
-            validateFood();  // Try again
-        }
-    }
+    js_mvprintw(centerY + 2, centerX, "|  Press R to retry  |");
+    js_mvprintw(centerY + 3, centerX, "+--------------------+");
 }
 
 // ============================================================================
 // Game Logic
 // ============================================================================
 
+void initSnake() {
+    // Initialize snake in the middle
+    game.snakeLen = 3;
+    int startX = SCREEN_COLS / 2;
+    int startY = SCREEN_ROWS / 2;
+    
+    for (int i = 0; i < game.snakeLen; i++) {
+        game.snake[i].x = startX - i;
+        game.snake[i].y = startY;
+    }
+    
+    game.direction = DIR_RIGHT;
+    game.disableDirection = DIR_LEFT;
+}
+
 void initGame() {
-    initscr();
-    start_color();
-    use_default_colors();
-    curs_set(0);
-    nodelay(stdscr, TRUE);
-    noecho();
-    cbreak();
+    // Initialize random seed
+    srand(42);
     
-    // Initialize color pairs
-    init_pair(1, COLOR_CYAN, COLOR_DEFAULT);     // Border
-    init_pair(2, COLOR_GREEN, COLOR_DEFAULT);    // Snake
-    init_pair(3, COLOR_GREEN, COLOR_DEFAULT);    // Snake body
-    init_pair(4, COLOR_RED, COLOR_DEFAULT);      // Food
-    init_pair(5, COLOR_YELLOW, COLOR_DEFAULT);   // Score
-    init_pair(6, COLOR_MAGENTA, COLOR_DEFAULT);  // Level
-    init_pair(7, COLOR_RED, COLOR_DEFAULT);      // Game over
+    // Clear screen
+    clearScreen();
     
-    // Clear screen buffer
-    for (int i = 0; i < 25; i++) {
-        for (int j = 0; j < 80; j++) {
-            gameState.screenBuffer[i][j] = ' ';
+    // Initialize game state
+    game.score = 0;
+    game.level = 1;
+    game.frameCount = 0;
+    game.gameOver = false;
+    
+    // Initialize snake
+    initSnake();
+    
+    // Draw initial state
+    js_clear();
+    drawBorder();
+    drawStatusBar();
+    
+    // Place and draw snake
+    for (int i = 0; i < game.snakeLen; i++) {
+        game.screen[game.snake[i].y][game.snake[i].x] = (i == 0) ? '@' : 'o';
+    }
+    drawSnake();
+    
+    // Place and draw food
+    placeFood();
+    drawFood();
+    
+    js_refresh();
+    
+    game.initialized = true;
+}
+
+void setDirection(int newDir) {
+    if (newDir != game.disableDirection) {
+        game.direction = newDir;
+        switch (newDir) {
+            case DIR_UP:    game.disableDirection = DIR_DOWN;  break;
+            case DIR_DOWN:  game.disableDirection = DIR_UP;    break;
+            case DIR_LEFT:  game.disableDirection = DIR_RIGHT; break;
+            case DIR_RIGHT: game.disableDirection = DIR_LEFT;  break;
+        }
+    }
+}
+
+void processInput() {
+    int key = js_getch();
+    
+    if (key == -1) return;
+    
+    if (game.gameOver) {
+        if (key == 'r' || key == 'R') {
+            initGame();
+        }
+        return;
+    }
+    
+    // Map keys to directions
+    switch (key) {
+        case 'w': case 'W': case 1000: setDirection(DIR_UP);    break;
+        case 's': case 'S': case 1001: setDirection(DIR_DOWN);  break;
+        case 'a': case 'A': case 1002: setDirection(DIR_LEFT);  break;
+        case 'd': case 'D': case 1003: setDirection(DIR_RIGHT); break;
+    }
+}
+
+void updateGame() {
+    if (game.gameOver) return;
+    
+    // Calculate new head position
+    Point newHead = game.snake[0];
+    switch (game.direction) {
+        case DIR_UP:    newHead.y--; break;
+        case DIR_DOWN:  newHead.y++; break;
+        case DIR_LEFT:  newHead.x--; break;
+        case DIR_RIGHT: newHead.x++; break;
+    }
+    
+    // Check collision with walls and self
+    char cell = game.screen[newHead.y][newHead.x];
+    if (cell == '#' || cell == '@' || cell == 'o') {
+        game.gameOver = true;
+        return;
+    }
+    
+    // Check if eating food
+    bool eating = (cell == '*');
+    
+    // Clear tail from screen (if not eating)
+    if (!eating) {
+        int tailIdx = game.snakeLen - 1;
+        js_mvprintw(game.snake[tailIdx].y, game.snake[tailIdx].x, " ");
+        game.screen[game.snake[tailIdx].y][game.snake[tailIdx].x] = ' ';
+    }
+    
+    // Move snake body
+    if (eating) {
+        // Grow snake - shift everything back and add new head
+        if (game.snakeLen < MAX_SNAKE_LEN) {
+            for (int i = game.snakeLen; i > 0; i--) {
+                game.snake[i] = game.snake[i - 1];
+            }
+            game.snakeLen++;
+        }
+        
+        // Update score
+        game.score += game.level * 10;
+        
+        // Level up every 50 points
+        game.level = 1 + game.score / 50;
+        if (game.level > 10) game.level = 10;
+        
+        // Place new food
+        placeFood();
+        drawFood();
+        
+        // Update status bar
+        drawStatusBar();
+    } else {
+        // Normal move - shift positions
+        for (int i = game.snakeLen - 1; i > 0; i--) {
+            game.snake[i] = game.snake[i - 1];
         }
     }
     
-    clear();
+    // Update head position
+    game.snake[0] = newHead;
     
-    gameState.body = new WebBody();
-    gameState.food = new WebFood();
-    gameState.score = 0;
-    gameState.gameOver = false;
-    gameState.frameCount = 0;
-    
-    validateFood();
-    
-    drawBorder();
-    drawStatusBar();
-    drawFood();
-    
-    // Draw initial snake
-    attron(COLOR_PAIR(2));
-    mvaddch(5, 5, 'o');
-    mvaddch(5, 6, 'o');
-    mvaddch(5, 7, 'O');
-    attroff(COLOR_PAIR(2));
-    
-    gameState.screenBuffer[5][5] = '@';
-    gameState.screenBuffer[5][6] = '@';
-    gameState.screenBuffer[5][7] = '@';
-    
-    refresh();
-    
-    gameState.initialized = true;
-}
-
-void resetGame() {
-    if (gameState.body) {
-        delete gameState.body;
+    // Draw snake
+    for (int i = 0; i < game.snakeLen; i++) {
+        if (i == 0) {
+            js_mvprintw(game.snake[i].y, game.snake[i].x, "O");
+            game.screen[game.snake[i].y][game.snake[i].x] = '@';
+        } else {
+            js_mvprintw(game.snake[i].y, game.snake[i].x, "o");
+            game.screen[game.snake[i].y][game.snake[i].x] = 'o';
+        }
     }
-    if (gameState.food) {
-        delete gameState.food;
-    }
-    
-    gameState.initialized = false;
-    initGame();
 }
 
 void gameLoop() {
-    if (!gameState.initialized || gameState.gameOver) {
-        // Check for restart
-        int key = getch();
-        if (key == 'r' || key == 'R') {
-            resetGame();
-        }
+    game.frameCount++;
+    
+    // Process all pending input
+    processInput();
+    
+    if (game.gameOver) {
+        drawGameOver();
+        js_refresh();
         return;
     }
     
-    gameState.frameCount++;
+    // Only update game at certain intervals based on level
+    // Higher level = faster game
+    int updateInterval = 12 - game.level;
+    if (updateInterval < 3) updateInterval = 3;
     
-    // Only update every N frames (based on level)
-    int updateDelay = 8 - gameState.level;
-    if (updateDelay < 2) updateDelay = 2;
+    if (game.frameCount % updateInterval == 0) {
+        updateGame();
+    }
     
-    if (gameState.frameCount % updateDelay != 0) {
-        // Still check for input
-        int key = getch();
-        if (key != ERR) {
-            switch (key) {
-                case KEY_UP:
-                case 'w':
-                case 'W':
-                    gameState.body->validateDirection(UP);
-                    break;
-                case KEY_DOWN:
-                case 's':
-                case 'S':
-                    gameState.body->validateDirection(DOWN);
-                    break;
-                case KEY_LEFT:
-                case 'a':
-                case 'A':
-                    gameState.body->validateDirection(LEFT);
-                    break;
-                case KEY_RIGHT:
-                case 'd':
-                case 'D':
-                    gameState.body->validateDirection(RIGHT);
-                    break;
+    js_refresh();
+}
+
+// ============================================================================
+// Exported Functions for JavaScript
+// ============================================================================
+
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void startGame() {
+        initGame();
+    }
+    
+    EMSCRIPTEN_KEEPALIVE
+    void runGameLoop() {
+        gameLoop();
+    }
+    
+    EMSCRIPTEN_KEEPALIVE
+    void handleKey(int key) {
+        if (game.gameOver) {
+            if (key == 'r' || key == 'R') {
+                initGame();
             }
-        }
-        return;
-    }
-    
-    // Process input
-    int key = getch();
-    if (key != ERR) {
-        switch (key) {
-            case KEY_UP:
-            case 'w':
-            case 'W':
-                gameState.body->validateDirection(UP);
-                break;
-            case KEY_DOWN:
-            case 's':
-            case 'S':
-                gameState.body->validateDirection(DOWN);
-                break;
-            case KEY_LEFT:
-            case 'a':
-            case 'A':
-                gameState.body->validateDirection(LEFT);
-                break;
-            case KEY_RIGHT:
-            case 'd':
-            case 'D':
-                gameState.body->validateDirection(RIGHT);
-                break;
-        }
-    }
-    
-    // Get next position
-    Point newHead = gameState.body->investigatePosition();
-    int x = newHead.getX();
-    int y = newHead.getY();
-    
-    // Check collision
-    if (x >= 0 && x < 25 && y >= 0 && y < 80) {
-        char ch = gameState.screenBuffer[x][y];
-        
-        if (ch == '@' || ch == '-' || ch == '|' || ch == '+') {
-            // Collision! Game over
-            gameState.gameOver = true;
-            drawGameOver();
-            refresh();
             return;
         }
         
-        if (ch == 'f') {
-            // Eat food
-            gameState.score += gameState.level * 10;
-            
-            // Move snake (don't remove tail = grow)
-            gameState.body->setHead(newHead);
-            gameState.screenBuffer[x][y] = '@';
-            
-            // Draw new head
-            attron(COLOR_PAIR(2));
-            mvaddch(x, y, 'O');
-            attroff(COLOR_PAIR(2));
-            
-            // New food
-            validateFood();
-            drawFood();
-            drawStatusBar();
-        } else {
-            // Normal move
-            Point tail = gameState.body->getTail();
-            
-            // Clear tail from screen
-            mvaddch(tail.getX(), tail.getY(), ' ');
-            gameState.screenBuffer[tail.getX()][tail.getY()] = ' ';
-            
-            // Move snake
-            gameState.body->setHead(newHead);
-            gameState.body->removeTail();
-            
-            // Draw new head
-            gameState.screenBuffer[x][y] = '@';
-            attron(COLOR_PAIR(2));
-            mvaddch(x, y, 'O');
-            attroff(COLOR_PAIR(2));
+        switch (key) {
+            case 'w': case 'W': case 1000: setDirection(DIR_UP);    break;
+            case 's': case 'S': case 1001: setDirection(DIR_DOWN);  break;
+            case 'a': case 'A': case 1002: setDirection(DIR_LEFT);  break;
+            case 'd': case 'D': case 1003: setDirection(DIR_RIGHT); break;
         }
-    } else {
-        // Out of bounds
-        gameState.gameOver = true;
-        drawGameOver();
     }
-    
-    refresh();
 }
 
 // ============================================================================
-// Emscripten Main Loop
+// Main Entry Point
 // ============================================================================
-
-void mainLoop() {
-    gameLoop();
-}
 
 int main() {
-    initGame();
-    
-    // Set up the Emscripten main loop
-    // Run at 60 FPS
-    emscripten_set_main_loop(mainLoop, 60, 1);
-    
+    // Don't auto-start - let JavaScript call startGame()
     return 0;
 }

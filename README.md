@@ -3,6 +3,7 @@
 The old and good Snake game now available to play in Terminal with a modern interface!
 
 [![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue)](https://marquesm91.github.io/TerminalSnake/)
+[![Play WASM](https://img.shields.io/badge/Play-WebAssembly-green)](https://terminalsnake-leaderboard.web.app/wasm.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ![Gameplay v1.4](assets/gameplay.png)
@@ -18,6 +19,7 @@ The old and good Snake game now available to play in Terminal with a modern inte
 - **🔐 Google Sign-In**: Authenticate using your Google account
 - **🛡️ Anti-Cheat System**: Replay-based validation with deterministic PRNG
 - **🏗️ Clean Architecture**: DDD/Hexagonal architecture for maintainability
+- **🕹️ WebAssembly Build**: Play directly in your browser (no installation needed!)
 
 ## 📋 Prerequisites
 
@@ -115,8 +117,8 @@ libs/                          # Legacy code (v1.0, v2.0)
 └── platform/                  # Platform adapters (v2.0)
 
 tests/
-├── testPoint.cpp              # Legacy tests
-└── testCleanArch.cpp          # Clean Architecture tests (50 cases)
+├── testPoint.cpp              # Legacy tests (22 cases)
+└── testCleanArch.cpp          # Clean Architecture tests (74 cases)
 ```
 
 ### Core Domain
@@ -168,7 +170,7 @@ cd tests && make test  # Same, from tests directory
 
 **Test results:**
 - Legacy tests: 22 test cases, 60 assertions
-- Clean Architecture tests: 50 test cases, 5,249 assertions
+- Clean Architecture tests: 74 test cases, 5,431 assertions
 
 ### Code Coverage
 
@@ -206,7 +208,8 @@ make stats
 
 | Version | Description |
 |---------|-------------|
-| **v3.0** | 🏗️ Clean Architecture refactor (DDD/Hexagonal), 50+ test cases |
+| **v3.1** | 🕹️ WebAssembly build - Play in browser via Firebase Hosting |
+| **v3.0** | 🏗️ Clean Architecture refactor (DDD/Hexagonal), 74+ test cases |
 | **v2.0** | 🌐 World Leaderboard with Firebase, Google Sign-In, Anti-Cheat system |
 | v1.4 | Snake now grows when eating food, size display updates correctly |
 | v1.3 | Added menu system, settings, highscore persistence, modern UI |
@@ -231,6 +234,8 @@ make stats
 - [x] Anti-cheat system with replay validation
 - [x] Clean Architecture refactor
 - [x] GitHub Pages landing page
+- [x] WebAssembly build (play in browser)
+- [x] Firebase Hosting with auto-deploy
 - [ ] Deploy Firebase Cloud Functions (backend ready)
 - [ ] Implement Firebase adapters for Clean Architecture
 - [ ] Arduino platform support
@@ -387,6 +392,91 @@ Features:
 - Live leaderboard (top 10 weekly players)
 - Download links for all platforms
 - Package manager installation commands
+
+## 🕹️ WebAssembly (Browser) Build
+
+Play the game directly in your browser without any installation!
+
+**Live Demo:** [https://terminalsnake-leaderboard.web.app/wasm.html](https://terminalsnake-leaderboard.web.app/wasm.html)
+
+### Building the WASM Version
+
+The WASM build uses [Emscripten](https://emscripten.org/) to compile C++ to WebAssembly and [xterm.js](https://xtermjs.org/) for terminal emulation in the browser.
+
+**Prerequisites:**
+```bash
+# Install Emscripten SDK
+cd TerminalSnake
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
+```
+
+**Build:**
+```bash
+cd web
+make
+```
+
+**Output Files:**
+- `firebase/public/tsnake.js` - Emscripten JavaScript glue code
+- `firebase/public/tsnake.wasm` - WebAssembly binary (~13KB)
+
+### Technical Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Browser                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  wasm.html                                                       │
+│  ├── xterm.js (Terminal Emulator)                               │
+│  ├── tsnake.js (Emscripten Glue)                               │
+│  └── tsnake.wasm (Game Logic)                                   │
+├─────────────────────────────────────────────────────────────────┤
+│  JavaScript ↔ WASM Bridge                                        │
+│  ├── window.terminalClear()    → js_clear() in C++              │
+│  ├── window.terminalWrite(y,x) → js_mvprintw() in C++           │
+│  ├── window.terminalRefresh()  → js_refresh() in C++            │
+│  └── window.getKey()           → js_getch() in C++              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### WASM-Specific Code
+
+The WASM version (`web/main_web.cpp`) is a self-contained implementation that:
+- Uses simple C arrays instead of `std::list` for better WASM compatibility
+- Communicates with JavaScript via `EM_JS` macros
+- Exports functions: `startGame()`, `runGameLoop()`, `handleKey()`
+- Runs at 60fps with level-based speed adjustment
+
+### Firebase Hosting
+
+The WASM build is hosted on Firebase Hosting with proper headers:
+```json
+{
+  "headers": [
+    {
+      "source": "**/*.wasm",
+      "headers": [{"key": "Content-Type", "value": "application/wasm"}]
+    },
+    {
+      "source": "**",
+      "headers": [
+        {"key": "Cross-Origin-Opener-Policy", "value": "same-origin"},
+        {"key": "Cross-Origin-Embedder-Policy", "value": "require-corp"}
+      ]
+    }
+  ]
+}
+```
+
+### Continuous Deployment
+
+The WASM build is automatically deployed via GitHub Actions (`.github/workflows/wasm.yml`):
+1. **Build**: Installs Emscripten, compiles C++ to WASM
+2. **Deploy**: Uploads to Firebase Hosting
 
 ## 📄 License
 

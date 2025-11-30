@@ -555,6 +555,33 @@
                             }
                         });
                         
+                        // Start the game
+                        if (wasmModule._startGame) {
+                            wasmModule._startGame();
+                        }
+                        
+                        // Start the game loop (run at ~60fps)
+                        setInterval(() => {
+                            // Process any pending key input
+                            while (keyBuffer.length > 0) {
+                                const key = keyBuffer.shift();
+                                if (wasmModule._handleKey) {
+                                    // Map arrow key codes to our custom codes
+                                    let mappedKey = key;
+                                    if (key === 0x103) mappedKey = 1000; // Up
+                                    else if (key === 0x102) mappedKey = 1001; // Down
+                                    else if (key === 0x104) mappedKey = 1002; // Left
+                                    else if (key === 0x105) mappedKey = 1003; // Right
+                                    wasmModule._handleKey(mappedKey);
+                                }
+                            }
+                            
+                            // Run game loop
+                            if (wasmModule._runGameLoop) {
+                                wasmModule._runGameLoop();
+                            }
+                        }, 16); // ~60fps
+                        
                         hideLoading();
                         term.focus();
                         
