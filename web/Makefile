@@ -30,9 +30,11 @@ EMCC_FLAGS = -O2 \
     -s STACK_SIZE=131072 \
     -I../libs
 
-.PHONY: all clean setup check-emcc
+.PHONY: all clean setup check-emcc release
 
 all: check-emcc setup $(WASM_OUTPUT)
+
+release: all
 
 check-emcc:
 	@$(EMCC) --version > /dev/null 2>&1 || (echo "Error: Emscripten not found. Run 'source emsdk/emsdk_env.sh'" && exit 1)
