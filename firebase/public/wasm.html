@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Terminal Snake - WASM Edition</title>
+    <meta name="description" content="Classic Snake game compiled to WebAssembly. The original C++ game running in your browser!">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Terminal Snake - WASM Edition">
+    <meta property="og:description" content="Classic Snake game compiled to WebAssembly">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://terminalsnake-leaderboard.web.app">
+    
+    <!-- xterm.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --accent-green: #3fb950;
+            --accent-blue: #58a6ff;
+            --border-color: #30363d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        
+        .logo span {
+            color: var(--accent-green);
+        }
+        
+        .badge {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            gap: 0;
+            overflow: hidden;
+        }
+        
+        #terminal-container {
+            width: auto;
+            max-width: 100%;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        }
+        
+        #terminal {
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            z-index: 1000;
+        }
+        
+        .loading-overlay.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: var(--accent-green);
+            font-size: 1rem;
+        }
+        
+        .loading-progress {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .controls-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-align: center;
+            background: rgba(13, 17, 23, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        
+        .controls-hint:hover {
+            opacity: 1;
+        }
+        
+        .mobile-controls {
+            display: none;
+            grid-template-columns: repeat(3, 60px);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-green);
+            border-radius: 12px;
+            color: var(--accent-green);
+            font-size: 1.5rem;
+            cursor: pointer;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-btn:active {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+        
+        .mobile-controls .up { grid-column: 2; }
+        .mobile-controls .left { grid-column: 1; grid-row: 2; }
+        .mobile-controls .down { grid-column: 2; grid-row: 2; }
+        .mobile-controls .right { grid-column: 3; grid-row: 2; }
+        
+        footer {
+            padding: 0.5rem 1rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+        
+        @media (max-width: 600px) {
+            header {
+                padding: 0.5rem;
+            }
+            
+            .logo {
+                font-size: 1rem;
+            }
+            
+            .stats {
+                display: none;
+            }
+            
+            .mobile-controls {
+                display: grid;
+                position: fixed;
+                bottom: 50px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 20;
+            }
+            
+            .controls-hint {
+                display: none;
+            }
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            .mobile-controls {
+                display: grid;
+            }
+        }
+        
+        /* Error state */
+        .error-message {
+            background: rgba(248, 81, 73, 0.2);
+            border: 1px solid #f85149;
+            border-radius: 8px;
+            padding: 1rem;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .error-message h3 {
+            color: #f85149;
+            margin-bottom: 0.5rem;
+        }
+        
+        .error-message p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .fallback-link {
+            margin-top: 1rem;
+            display: inline-block;
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            🐍 <span>Terminal</span>Snake<span class="badge">WASM</span>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <span>Original C++ compiled to WebAssembly</span>
+            </div>
+        </div>
+    </header>
+    
+    <main>
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
+        
+        <p class="controls-hint">
+            Use <strong>Arrow Keys</strong> or <strong>WASD</strong> to move | Press <strong>R</strong> to restart
+        </p>
+        
+        <div class="mobile-controls">
+            <button class="mobile-btn up" data-key="ArrowUp">↑</button>
+            <button class="mobile-btn left" data-key="ArrowLeft">←</button>
+            <button class="mobile-btn down" data-key="ArrowDown">↓</button>
+            <button class="mobile-btn right" data-key="ArrowRight">→</button>
+        </div>
+    </main>
+    
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Terminal Snake...</div>
+        <div class="loading-progress" id="loading-progress">Initializing WebAssembly...</div>
+    </div>
+    
+    <footer>
+        <p>
+            Terminal Snake WASM Edition | 
+            <a href="https://github.com/dmarques/TerminalSnake" target="_blank">GitHub</a> | 
+            Built with Emscripten + xterm.js
+        </p>
+    </footer>
+
+    <script>
+        // ========================================================================
+        // Terminal Setup
+        // ========================================================================
+        
+        let term;
+        let fitAddon;
+        let keyBuffer = [];
+        let wasmModule = null;
+        
+        // Key codes that match common.hpp: UP=3, DOWN=2, LEFT=4, RIGHT=5
+        const KEY_CODES = {
+            'ArrowUp': 3,
+            'ArrowDown': 2,
+            'ArrowLeft': 4,
+            'ArrowRight': 5,
+            'Enter': 0x157,
+            'w': 3,
+            'W': 3,
+            's': 2,
+            'S': 2,
+            'a': 4,
+            'A': 4,
+            'd': 5,
+            'D': 5,
+            'r': 'r'.charCodeAt(0),
+            'R': 'R'.charCodeAt(0)
+        };
+        
+        function initTerminal() {
+            term = new Terminal({
+                cols: 80,
+                rows: 24,
+                cursorBlink: false,
+                cursorStyle: 'block',
+                fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+                fontSize: 18,
+                lineHeight: 1.0,
+                theme: {
+                    background: '#000000',
+                    foreground: '#e6edf3',
+                    cursor: '#3fb950',
+                    cursorAccent: '#000000',
+                    black: '#000000',
+                    red: '#f85149',
+                    green: '#3fb950',
+                    yellow: '#d29922',
+                    blue: '#58a6ff',
+                    magenta: '#bc8cff',
+                    cyan: '#39c5cf',
+                    white: '#e6edf3',
+                    brightBlack: '#6e7681',
+                    brightRed: '#ff7b72',
+                    brightGreen: '#56d364',
+                    brightYellow: '#e3b341',
+                    brightBlue: '#79c0ff',
+                    brightMagenta: '#d2a8ff',
+                    brightCyan: '#56d4dd',
+                    brightWhite: '#ffffff'
+                }
+            });
+            
+            // Try to load WebGL addon for better performance
+            try {
+                const webglAddon = new WebglAddon.WebglAddon();
+                term.loadAddon(webglAddon);
+            } catch (e) {
+                console.warn('WebGL addon not available, using canvas renderer');
+            }
+            
+            const container = document.getElementById('terminal');
+            term.open(container);
+            
+            // Capture keyboard input
+            term.onKey(({ key, domEvent }) => {
+                domEvent.preventDefault();
+                
+                const keyCode = KEY_CODES[domEvent.key];
+                if (keyCode !== undefined) {
+                    keyBuffer.push(keyCode);
+                } else if (key.length === 1) {
+                    keyBuffer.push(key.charCodeAt(0));
+                }
+            });
+            
+            // Also capture global keyboard events
+            document.addEventListener('keydown', (e) => {
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'W', 'a', 'A', 's', 'S', 'd', 'D', 'r', 'R'].includes(e.key)) {
+                    e.preventDefault();
+                    const keyCode = KEY_CODES[e.key];
+                    if (keyCode !== undefined) {
+                        keyBuffer.push(keyCode);
+                    }
+                }
+            });
+            
+            return term;
+        }
+        
+        // ========================================================================
+        // WASM Bridge Functions (called from C++)
+        // ========================================================================
+        
+        window.terminalWrite = function(str) {
+            if (term) {
+                term.write(str);
+            }
+        };
+        
+        window.terminalClear = function() {
+            if (term) {
+                term.clear();
+                term.write('\x1b[2J\x1b[H'); // Clear screen and move cursor to home
+            }
+        };
+        
+        window.terminalSetSize = function(cols, rows) {
+            if (term) {
+                term.resize(cols, rows);
+            }
+        };
+        
+        window.getKey = function() {
+            if (keyBuffer.length > 0) {
+                return keyBuffer.shift();
+            }
+            return -1;
+        };
+        
+        // ========================================================================
+        // Mobile Controls
+        // ========================================================================
+        
+        function setupMobileControls() {
+            document.querySelectorAll('.mobile-btn').forEach(btn => {
+                const keyName = btn.dataset.key;
+                
+                const handlePress = (e) => {
+                    e.preventDefault();
+                    const keyCode = KEY_CODES[keyName];
+                    if (keyCode !== undefined) {
+                        keyBuffer.push(keyCode);
+                    }
+                    btn.style.background = 'var(--accent-green)';
+                    btn.style.color = 'var(--bg-primary)';
+                };
+                
+                const handleRelease = () => {
+                    btn.style.background = '';
+                    btn.style.color = '';
+                };
+                
+                btn.addEventListener('touchstart', handlePress);
+                btn.addEventListener('touchend', handleRelease);
+                btn.addEventListener('mousedown', handlePress);
+                btn.addEventListener('mouseup', handleRelease);
+                btn.addEventListener('mouseleave', handleRelease);
+            });
+        }
+        
+        // ========================================================================
+        // WASM Loading
+        // ========================================================================
+        
+        function updateProgress(message) {
+            const progressEl = document.getElementById('loading-progress');
+            if (progressEl) {
+                progressEl.textContent = message;
+            }
+        }
+        
+        function hideLoading() {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.classList.add('hidden');
+            }
+        }
+        
+        function showError(message) {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.innerHTML = `
+                    <div class="error-message">
+                        <h3>Failed to Load</h3>
+                        <p>${message}</p>
+                        <p style="margin-top: 0.5rem; font-size: 0.75rem;">
+                            Make sure you've built the WASM module with Emscripten.
+                        </p>
+                        <a href="https://github.com/dmarques/TerminalSnake#web-build" class="fallback-link">
+                            View Build Instructions →
+                        </a>
+                    </div>
+                `;
+            }
+        }
+        
+        let gameInterval = null;
+        let gameOver = false;
+        
+        async function loadWasm() {
+            updateProgress('Setting up terminal...');
+            initTerminal();
+            setupMobileControls();
+            
+            updateProgress('Loading WebAssembly module...');
+            
+            try {
+                // Check if WASM file exists
+                const wasmCheck = await fetch('game.wasm', { method: 'HEAD' });
+                if (!wasmCheck.ok) {
+                    throw new Error('WASM module not found (game.wasm). Build with Emscripten first.');
+                }
+                
+                updateProgress('Initializing game engine...');
+                
+                // Load the Emscripten module (non-modular build)
+                const script = document.createElement('script');
+                script.src = 'game.js';
+                
+                script.onload = () => {
+                    // Wait for Module to be ready
+                    const checkModule = setInterval(() => {
+                        if (typeof Module !== 'undefined' && Module._initGame) {
+                            clearInterval(checkModule);
+                            startGame();
+                        }
+                    }, 100);
+                };
+                
+                script.onerror = (e) => {
+                    console.error('Script load error:', e);
+                    showError('Failed to load game.js');
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (e) {
+                console.error('WASM load error:', e);
+                showError(e.message);
+            }
+        }
+        
+        function startGame() {
+            updateProgress('Starting game...');
+            
+            // Initialize game with level 1
+            Module._initGame(1);
+            gameOver = false;
+            
+            hideLoading();
+            term.focus();
+            
+            // Game loop - call gameFrame at ~60fps
+            // The C++ code handles timing with DELAY (80ms)
+            if (gameInterval) clearInterval(gameInterval);
+            
+            gameInterval = setInterval(() => {
+                // Process keyboard input
+                while (keyBuffer.length > 0) {
+                    const key = keyBuffer.shift();
+                    
+                    // Handle restart
+                    if (key === 'r'.charCodeAt(0) || key === 'R'.charCodeAt(0)) {
+                        if (gameOver) {
+                            Module._resetGame();
+                            gameOver = false;
+                        }
+                        continue;
+                    }
+                    
+                    // Send input to game
+                    Module._handleInput(key);
+                }
+                
+                // Run game frame
+                const result = Module._gameFrame();
+                if (result === 1) {
+                    gameOver = true;
+                }
+            }, 10); // Run faster, C++ handles actual timing
+        }
+        
+        // Start loading when page is ready
+        document.addEventListener('DOMContentLoaded', loadWasm);
+    </script>
+</body>
+</html>

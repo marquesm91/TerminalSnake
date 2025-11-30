@@ -1,12 +1,34 @@
 .DS_Store
-bin
-obj
+bin/
+obj/
 /*.md
 !README.md
 !LICENSE.md
 !CONTRIBUTING.md
 
 # Test executables (all test_* binaries in tests folder should not be committed)
+# Test executables
 tests/test_*
+!tests/*.cpp
+!tests/*.hpp
 tests/*.o
 tests/obj/
+tests/runTests*
+
+# Emscripten SDK (local installation)
+emsdk/
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Firebase
+.firebase/
+*/.firebase/
+firebase-debug.log
+
+# WASM build artifacts (generated files)
+firebase/public/*.js
+firebase/public/*.wasm
+!firebase/public/app.js
+terminalsnake-leaderboard-firebase-adminsdk-fbsvc-20e74338fa.json

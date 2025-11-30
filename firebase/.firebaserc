@@ -1,0 +1,10 @@
+{
+  "projects": {
+    "default": "terminalsnake-leaderboard",
+    "terminalsnake": "terminalsnake-leaderboard",
+    "terminalsnake-prd": "terminalsnake-leaderboard",
+    "ts-prd": "terminalsnake-leaderboard"
+  },
+  "targets": {},
+  "etags": {}
+}

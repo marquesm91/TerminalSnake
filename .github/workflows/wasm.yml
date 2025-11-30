@@ -1,0 +1,85 @@
+name: Build and Deploy WASM
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'web/**'
+      - 'libs/**'
+      - '.github/workflows/wasm.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'web/**'
+      - 'libs/**'
+  workflow_dispatch:
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+          actions-cache-folder: 'emsdk-cache'
+      
+      - name: Verify Emscripten
+        run: |
+          emcc --version
+          which emcc
+      
+      - name: Run WASM Tests
+        run: |
+          emcc tests/test_wasm_collision.cpp -o tests/test_wasm_collision.js
+          node tests/test_wasm_collision.js
+
+      - name: Build WASM
+        run: |
+          cd web
+          make release
+      
+      - name: List outputs
+        run: |
+          ls -la firebase/public/tsnake.* || true
+          ls -la web/build/ || true
+      
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build
+          path: |
+            firebase/public/tsnake.js
+            firebase/public/tsnake.wasm
+          if-no-files-found: error
+  
+  deploy-firebase:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-build
+          path: firebase/public/
+      
+      - name: List files
+        run: ls -la firebase/public/
+      
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: terminalsnake-leaderboard
+          channelId: live
+          entryPoint: ./firebase

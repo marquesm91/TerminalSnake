@@ -14,41 +14,57 @@ private:
     int animationFrame;
     std::vector<std::string> menuOptions;
     std::vector<std::string> difficultyOptions;
+    bool userSignedIn;
 
     void drawLogo(int startY, int startX) {
-        // Animated color effect for the logo
-        int colorShift = animationFrame % 3;
-        
         std::vector<std::string> logo = {
-            "  ___  _  _   _   _  _____",
-            " / __|| \\| | /_\\ | |/ / __|",
-            " \\__ \\| .` |/ _ \\| ' <| _|",
-            " |___/|_|\\_/_/ \\_\\_|\\_\\___|"
+            "  _______                  _             _   _____             _",
+            " |__   __|                (_)           | | / ____|           | |",
+            "    | | ___ _ __ _ __ ___  _ _ __   __ _| || (___  _ __   __ _| | _____ ",
+            "    | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | \\___ \\| '_ \\ / _` | |/ / _ \\",
+            "    | |  __/ |  | | | | | | | | | | (_| | | ____) | | | | (_| |   <  __/",
+            "    |_|\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_||_____/|_| |_|\\__,_|_|\\_\\___|"
         };
 
-        int logoWidth = 28;
+        int logoWidth = logo[0].length();
         int logoStartX = startX - (logoWidth / 2);
+        
+        // Ensure we don't draw off-screen
+        if (logoStartX < 0) logoStartX = 0;
 
-        // Draw each line with animated colors
+        // Animation: Shimmer effect moving from left to right
+        int shimmerPos = (animationFrame * 2) % (logoWidth + 20); // Speed 2x, +20 for pause
+
         for (size_t i = 0; i < logo.size(); i++) {
-            int colorPair = ((static_cast<int>(i) + colorShift) % 3) + 1;
-            if (colorPair == 1) {
-                attron(COLOR_PAIR(1) | A_BOLD);  // Cyan
-            } else if (colorPair == 2) {
-                attron(COLOR_PAIR(2) | A_BOLD);  // Green
-            } else {
-                attron(COLOR_PAIR(5) | A_BOLD);  // Yellow
+            for (size_t j = 0; j < logo[i].length(); j++) {
+                char c = logo[i][j];
+                if (c == ' ') continue;
+
+                // Calculate distance from shimmer position
+                int dist = abs((int)j - (shimmerPos - 10)); // Offset to start off-screen
+                
+                if (dist < 3) {
+                    attron(COLOR_PAIR(2) | A_BOLD | A_REVERSE); // Bright Green (Shimmer center)
+                } else if (dist < 6) {
+                    attron(COLOR_PAIR(2) | A_BOLD);             // Green Bold (Shimmer edge)
+                } else {
+                    attron(COLOR_PAIR(2));                      // Normal Green
+                }
+                
+                mvaddch(startY + i, logoStartX + j, c);
+                
+                attroff(COLOR_PAIR(2) | A_BOLD | A_REVERSE);
             }
-            mvprintw(startY + static_cast<int>(i), logoStartX, "%s", logo[i].c_str());
-            attroff(COLOR_PAIR(1) | A_BOLD);
-            attroff(COLOR_PAIR(2) | A_BOLD);
-            attroff(COLOR_PAIR(5) | A_BOLD);
         }
 
-        // Subtitle
-        attron(COLOR_PAIR(5));  // Yellow
-        mvprintw(startY + 6, startX - 10, "Terminal Edition v1.4");
-        attroff(COLOR_PAIR(5));
+        // Subtitle with pulsing effect
+        if ((animationFrame / 5) % 2 == 0) {
+            attron(COLOR_PAIR(5) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(5));
+        }
+        mvprintw(startY + logo.size() + 1, startX - 10, "Terminal Edition v2.0");
+        attroff(COLOR_PAIR(5) | A_BOLD);
     }
 
     void drawMenuBox(int startY, int startX, int height, int width) {
@@ -76,9 +92,18 @@ private:
     }
 
 public:
-    Menu() : selectedOption(0), difficultyLevel(1), animationFrame(0) {
-        menuOptions = {"Start Game", "Settings", "Exit"};
+    Menu() : selectedOption(0), difficultyLevel(1), animationFrame(0), userSignedIn(false) {
+        menuOptions = {"Start Game", "Leaderboard", "Settings", "Sign In", "Exit"};
         difficultyOptions = {"Easy", "Normal", "Hard", "Insane"};
+    }
+    
+    void setUserSignedIn(bool signedIn, const std::string& userName = "") {
+        userSignedIn = signedIn;
+        if (signedIn && !userName.empty()) {
+            menuOptions[3] = "Sign Out (" + userName.substr(0, 10) + ")";
+        } else {
+            menuOptions[3] = "Sign In";
+        }
     }
 
     int getDifficultyLevel() const { 
@@ -105,9 +130,9 @@ public:
         drawLogo(3, centerX);
 
         // Menu box
-        int boxHeight = 12;
+        int boxHeight = 16;
         int boxWidth = 30;
-        int boxY = centerY - 2;
+        int boxY = centerY - 4;
         int boxX = centerX - boxWidth / 2;
 
         drawMenuBox(boxY, boxX, boxHeight, boxWidth);
@@ -160,7 +185,7 @@ public:
             case 'q':
             case 'Q':
                 timeout(-1);  // Reset to blocking
-                return 2;  // Exit
+                return 4;  // Exit
             case ERR:  // Timeout - just continue animating
                 return -1;
             default:

@@ -1,0 +1,492 @@
+/**
+ * @file ncurses_renderer.hpp
+ * @brief NCursesRenderer - Adaptador de renderização para terminal
+ * 
+ * Clean Architecture: Infrastructure Layer - Adapter
+ * Hexagonal: Output Adapter (implements Port)
+ */
+
+#ifndef INFRASTRUCTURE_ADAPTERS_OUTPUT_NCURSES_RENDERER_HPP
+#define INFRASTRUCTURE_ADAPTERS_OUTPUT_NCURSES_RENDERER_HPP
+
+#include <ncurses.h>
+#include <cstring>
+#include <string>
+#include <algorithm>
+#include <clocale>
+#include "application/ports/renderer_port.hpp"
+
+namespace Snake {
+namespace Infrastructure {
+namespace Adapters {
+
+/**
+ * @brief Cores para o terminal
+ */
+enum class TerminalColor {
+    Default = 0,
+    SnakeHead = 1,
+    SnakeBody = 2,
+    Food = 3,
+    Border = 4,
+    Score = 5,
+    GameOver = 6,
+    MenuSelected = 7,
+    MenuNormal = 8
+};
+
+/**
+ * @brief Renderizador NCurses para terminal
+ */
+class NCursesRenderer : public Application::Ports::IRenderer {
+public:
+    NCursesRenderer() : initialized_(false), offsetX_(0), offsetY_(0), animationFrame_(0) {}
+    
+    ~NCursesRenderer() override {
+        if (initialized_) {
+            shutdown();
+        }
+    }
+    
+    void init() override {
+        if (initialized_) return;
+        
+        // Enable UTF-8 support
+        setlocale(LC_ALL, "");
+        
+        initscr();
+        cbreak();
+        noecho();
+        curs_set(0);
+        keypad(stdscr, TRUE);
+        nodelay(stdscr, TRUE);
+        leaveok(stdscr, TRUE); // Disable cursor movement to reduce flicker
+        
+        // Initialize colors
+        if (has_colors()) {
+            start_color();
+            use_default_colors();
+            
+            init_pair(static_cast<int>(TerminalColor::SnakeHead), COLOR_GREEN, -1);
+            init_pair(static_cast<int>(TerminalColor::SnakeBody), COLOR_GREEN, -1);
+            init_pair(static_cast<int>(TerminalColor::Food), COLOR_RED, -1);
+            init_pair(static_cast<int>(TerminalColor::Border), COLOR_WHITE, -1);
+            init_pair(static_cast<int>(TerminalColor::Score), COLOR_YELLOW, -1);
+            init_pair(static_cast<int>(TerminalColor::GameOver), COLOR_RED, -1);
+            init_pair(static_cast<int>(TerminalColor::MenuSelected), COLOR_BLACK, COLOR_WHITE);
+            init_pair(static_cast<int>(TerminalColor::MenuNormal), COLOR_WHITE, -1);
+        }
+        
+        initialized_ = true;
+    }
+    
+    void shutdown() override {
+        if (!initialized_) return;
+        
+        endwin();
+        initialized_ = false;
+    }
+    
+    void beginFrame() override {
+        erase(); // Clear the virtual screen buffer, much faster and less flicker than clear()
+        
+        // Full Screen Layout
+        // Reserve 1 line for top status bar and 1 line for bottom info bar
+        int topMargin = 1;
+        // int bottomMargin = 1; // Not directly used for offsetY, but for game area height calculation
+        
+        // Game area uses remaining space
+        // Note: The game logic needs to know this size.
+        // For now, we set offsets to accommodate the bars.
+        offsetX_ = 0;
+        offsetY_ = topMargin;
+        
+        // Increment animation frame for effects
+        animationFrame_++;
+    }
+    
+    void endFrame() override {
+        refresh();
+    }
+    
+    void clear() override {
+        // Do nothing here to avoid flicker. 
+        // We rely on overwriting or specific clearing if needed.
+    }
+    
+    void drawBorder(uint8_t width, uint8_t height) override {
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+        
+        // Use full width/height passed from game logic
+        // The game logic should have been configured with (COLS - 2, LINES - 2 - bars)
+        
+        // Cantos
+        mvaddch(offsetY_, offsetX_, ACS_ULCORNER);
+        mvaddch(offsetY_, offsetX_ + width + 1, ACS_URCORNER);
+        mvaddch(offsetY_ + height + 1, offsetX_, ACS_LLCORNER);
+        mvaddch(offsetY_ + height + 1, offsetX_ + width + 1, ACS_LRCORNER);
+        
+        // Linhas horizontais
+        for (int x = 1; x <= width; ++x) {
+            mvaddch(offsetY_, offsetX_ + x, ACS_HLINE);
+            mvaddch(offsetY_ + height + 1, offsetX_ + x, ACS_HLINE);
+        }
+        
+        // Linhas verticais
+        for (int y = 1; y <= height; ++y) {
+            mvaddch(offsetY_ + y, offsetX_, ACS_VLINE);
+            mvaddch(offsetY_ + y, offsetX_ + width + 1, ACS_VLINE);
+        }
+        
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+    }
+    
+    void drawSnake(const Domain::SnakeEntity& snake) override {
+        bool first = true;
+        for (const auto& segment : snake) {
+            if (first) {
+                // Cabeça (Unicode: ◆ Black Diamond Suit)
+                attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+                mvprintw(offsetY_ + 1 + segment.y(), 
+                       offsetX_ + 1 + segment.x(), "\u25C6");
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+                first = false;
+            } else {
+                // Corpo (Unicode: ■ Black Square)
+                attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
+                mvprintw(offsetY_ + 1 + segment.y(), 
+                       offsetX_ + 1 + segment.x(), "\u25A0");
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
+            }
+        }
+    }
+    
+    void drawFood(const Domain::FoodEntity& food) override {
+        if (!food.isActive()) return;
+        
+        // Comida (Unicode: ● Black Circle)
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+        mvprintw(offsetY_ + 1 + food.position().y(),
+               offsetX_ + 1 + food.position().x(), "\u25CF");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+    }
+    
+    void drawStatusBar(uint32_t score, uint32_t highscore) {
+        // Top Bar
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+        for(int i=0; i<COLS; i++) mvaddch(0, i, ' ');
+        
+        mvprintw(0, 1, "🐍 TERMINAL SNAKE v3.0");
+        mvprintw(0, COLS/2 - 10, "SCORE: %u  HIGH: %u", score, highscore);
+        mvprintw(0, COLS - 15, "DIFFICULTY: ???"); // TODO: Pass difficulty
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+    }
+
+    void drawInfoBar() {
+        // Bottom Bar (Ticker)
+        drawTicker();
+    }
+
+    void drawScore(uint32_t score, uint32_t highscore) override {
+        // Now handled by drawStatusBar, but we keep this for compatibility if needed
+        // or update to call drawStatusBar
+        drawStatusBar(score, highscore);
+        drawInfoBar();
+    }
+    
+    void drawPaused() override {
+        int centerY = LINES / 2;
+        int centerX = COLS / 2;
+        
+        attron(A_BOLD | A_REVERSE);
+        mvprintw(centerY, centerX - 4, " PAUSED ");
+        attroff(A_BOLD | A_REVERSE);
+    }
+    
+    void drawGameOver(uint32_t score, uint32_t highscore) override {
+        int centerY = LINES / 2;
+        int centerX = COLS / 2;
+        
+        // Draw box background
+        int boxWidth = 40;
+        int boxHeight = 12;
+        int startY = centerY - boxHeight / 2;
+        int startX = centerX - boxWidth / 2;
+        
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+        // Draw box border
+        mvaddch(startY, startX, ACS_ULCORNER);
+        mvaddch(startY, startX + boxWidth - 1, ACS_URCORNER);
+        mvaddch(startY + boxHeight - 1, startX, ACS_LLCORNER);
+        mvaddch(startY + boxHeight - 1, startX + boxWidth - 1, ACS_LRCORNER);
+        for (int j = 1; j < boxWidth - 1; j++) {
+            mvaddch(startY, startX + j, ACS_HLINE);
+            mvaddch(startY + boxHeight - 1, startX + j, ACS_HLINE);
+        }
+        for (int i = 1; i < boxHeight - 1; i++) {
+            mvaddch(startY + i, startX, ACS_VLINE);
+            mvaddch(startY + i, startX + boxWidth - 1, ACS_VLINE);
+        }
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Border)));
+
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
+        mvprintw(centerY - 3, centerX - 5, "GAME OVER!");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
+        
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        mvprintw(centerY - 1, centerX - 8, "Final Score: %u", score);
+        
+        if (score >= highscore && score > 0) {
+            attron(A_BLINK | A_BOLD);
+            mvprintw(centerY + 1, centerX - 7, "NEW HIGHSCORE!");
+            attroff(A_BLINK | A_BOLD);
+        } else {
+            mvprintw(centerY + 1, centerX - 6, "High: %u", highscore);
+        }
+        
+        mvprintw(centerY + 3, centerX - 10, "Press any key...");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+    }
+    
+    void drawLogo(int startY, int startX) {
+        std::vector<std::string> logo = {
+            "  _______                  _             _   _____             _",
+            " |__   __|                (_)           | | / ____|           | |",
+            "    | | ___ _ __ _ __ ___  _ _ __   __ _| || (___  _ __   __ _| | _____ ",
+            "    | |/ _ \\ '__| '_ ` _ \\| | '_ \\ / _` | | \\___ \\| '_ \\ / _` | |/ / _ \\",
+            "    | |  __/ |  | | | | | | | | | | (_| | | ____) | | | | (_| |   <  __/",
+            "    |_|\\___|_|  |_| |_| |_|_|_| |_|\\__,_|_||_____/|_| |_|\\__,_|_|\\_\\___|"
+        };
+
+        int logoWidth = logo[0].length();
+        int logoStartX = startX - (logoWidth / 2);
+        
+        if (logoStartX < 0) logoStartX = 0;
+
+        // Animation: Shimmer effect
+        int shimmerPos = (animationFrame_ * 2) % (logoWidth + 20);
+
+        for (size_t i = 0; i < logo.size(); i++) {
+            for (size_t j = 0; j < logo[i].length(); j++) {
+                char c = logo[i][j];
+                if (c == ' ') continue;
+
+                int dist = abs((int)j - (shimmerPos - 10));
+                
+                if (dist < 3) {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD | A_REVERSE);
+                } else if (dist < 6) {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD);
+                } else {
+                    attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)));
+                }
+                
+                mvaddch(startY + i, logoStartX + j, c);
+                
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_BOLD | A_REVERSE);
+            }
+        }
+
+        // Subtitle
+        if ((animationFrame_ / 5) % 2 == 0) {
+            attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_BOLD);
+        } else {
+            attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        }
+        mvprintw(startY + logo.size() + 1, startX - 10, "Terminal Edition v3.0");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_BOLD);
+    }
+    
+    struct Drop { int x, y, speed, len; };
+    void drawBackgroundEffect() {
+        // Matrix Digital Rain Effect
+        static std::vector<Drop> drops;
+        
+        // Initialize drops if empty
+        if (drops.empty()) {
+            for (int i = 0; i < COLS / 10; ++i) { // Reduced density for performance
+                drops.push_back({
+                    rand() % COLS,
+                    rand() % LINES,
+                    (rand() % 2) + 1, // Speed 1 or 2
+                    (rand() % 10) + 5 // Length 5-15
+                });
+            }
+        }
+        
+        // Update and Draw drops
+        for (auto& drop : drops) {
+            // Draw the tail
+            for (int i = 0; i < drop.len; ++i) {
+                int y = drop.y - i;
+                if (y >= 0 && y < LINES) {
+                    if (i == 0) {
+                        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD); // Bright head
+                        mvaddch(y, drop.x, (rand() % 2 == 0) ? '1' : '0');
+                        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+                    } else {
+                        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_DIM); // Dim tail
+                        mvaddch(y, drop.x, (rand() % 2 == 0) ? '1' : '0');
+                        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeBody)) | A_DIM);
+                    }
+                }
+            }
+            
+            // Move drop
+            if (animationFrame_ % (3 - drop.speed) == 0) {
+                drop.y++;
+            }
+            
+            // Reset if out of screen
+            if (drop.y - drop.len > LINES) {
+                drop.y = 0;
+                drop.x = rand() % COLS;
+            }
+        }
+    }
+
+    void drawTicker() {
+        // Simulate a live ticker
+        int tickerWidth = COLS;
+        int tickerY = LINES - 1;
+        
+        // Background for ticker
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+        for(int i=0; i<tickerWidth; i++) mvaddch(tickerY, i, ' ');
+        
+        // Scrolling text (using animationFrame)
+        std::string msg = "🔴 LIVE: 1,337 Players Online  |  🏆 New Record: @Neo - 9,999 pts  |  🔥 @Trinity is on a streak (5 wins)  |  ";
+        int msgLen = msg.length();
+        int scrollPos = (animationFrame_ / 2) % msgLen;
+        
+        std::string displayMsg = msg.substr(scrollPos) + msg.substr(0, scrollPos);
+        if (displayMsg.length() > (size_t)tickerWidth) displayMsg = displayMsg.substr(0, tickerWidth);
+        
+        mvprintw(tickerY, 0, "%s", displayMsg.c_str());
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+    }
+
+    void drawMenu(int selectedOption, uint32_t highscore) override {
+        const char* options[] = {
+            "🎮 Start Game",
+            "🏆 Leaderboard",
+            "⚙️  Settings",
+            "👤 Sign In (Social)",
+            "📱 Share (QR Code)",
+            "🚪 Exit"
+        };
+        const int numOptions = 6;
+        
+        int centerY = LINES / 2;
+        int centerX = COLS / 2;
+        
+        // Draw Animated Background
+        drawBackgroundEffect();
+        
+        // Draw Logo
+        drawLogo(3, centerX);
+        
+        int menuStartY = centerY + 2;
+        
+        // Highscore
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
+        mvprintw(menuStartY - 2, centerX - 8, "High Score: %u", highscore);
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::GameOver)) | A_BOLD);
+        
+        // Opções
+        for (int i = 0; i < numOptions; ++i) {
+            int y = menuStartY + i * 2;
+            // Adjust center calculation for UTF-8 length (approximate)
+            int len = strlen(options[i]) - 3; // Subtract bytes for emoji roughly
+            int x = centerX - len / 2;
+            
+            if (i == selectedOption) {
+                attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+                mvprintw(y, x - 2, " %s ", options[i]);
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuSelected)));
+            } else {
+                attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+                mvprintw(y, x, "%s", options[i]);
+                attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+            }
+        }
+        
+        // Draw Live Ticker
+        drawTicker();
+    }
+    
+    void drawLeaderboard(const std::vector<Application::Ports::LeaderboardEntry>& entries = {}) override {
+        // Draw Animated Background for Leaderboard too
+        drawBackgroundEffect();
+        
+        int centerY = LINES / 2;
+        int centerX = COLS / 2;
+        
+        // Title
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+        mvprintw(3, centerX - 10, "=== 🌍 WORLD LEADERBOARD ===");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::SnakeHead)) | A_BOLD);
+        
+        // Column headers
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_UNDERLINE);
+        mvprintw(5, centerX - 30, "%-4s %-20s %-8s %-10s %-8s", 
+                 "Rank", "Player", "Score", "Difficulty", "Verified");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)) | A_UNDERLINE);
+        
+        if (entries.empty()) {
+            attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+            mvprintw(centerY, centerX - 15, "No entries or not connected");
+            mvprintw(centerY + 1, centerX - 12, "Sign in to view leaderboard");
+            attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+        } else {
+            // ... (existing entry drawing code) ...
+            // Display entries (max 15 to fit screen)
+            int maxEntries = std::min(static_cast<int>(entries.size()), 15);
+            for (int i = 0; i < maxEntries; ++i) {
+                const auto& entry = entries[static_cast<size_t>(i)];
+                int y = 7 + i;
+                
+                std::string displayName = entry.displayName;
+                if (displayName.length() > 18) displayName = displayName.substr(0, 15) + "...";
+                
+                if (i < 3) attron(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+                else attron(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+                
+                mvprintw(y, centerX - 30, "%-4d %-20s %-8u %-10s %-8s",
+                         i + 1, displayName.c_str(), entry.score, entry.difficulty.c_str(), entry.verified ? "Yes" : "No");
+                
+                if (i < 3) attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Food)) | A_BOLD);
+                else attroff(COLOR_PAIR(static_cast<int>(TerminalColor::MenuNormal)));
+            }
+        }
+        
+        // Footer
+        attron(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        mvprintw(LINES - 3, centerX - 20, "[F] Follow Player   [C] Challenge   [Q] Back");
+        attroff(COLOR_PAIR(static_cast<int>(TerminalColor::Score)));
+        
+        drawTicker();
+    }
+    
+    void drawMessage(const char* message) override {
+        int centerY = LINES / 2;
+        int centerX = COLS / 2 - static_cast<int>(strlen(message)) / 2;
+        
+        mvprintw(centerY, centerX, "%s", message);
+    }
+    
+    int screenWidth() const override { return COLS; }
+    int screenHeight() const override { return LINES; }
+
+private:
+    bool initialized_;
+    int offsetX_;
+    int offsetY_;
+    int animationFrame_;
+};
+
+} // namespace Adapters
+} // namespace Infrastructure
+} // namespace Snake
+
+#endif // INFRASTRUCTURE_ADAPTERS_OUTPUT_NCURSES_RENDERER_HPP

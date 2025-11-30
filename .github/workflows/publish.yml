@@ -1,0 +1,400 @@
+name: Publish to Package Managers
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  # ==========================================================================
+  # Homebrew (macOS + Linux)
+  # ==========================================================================
+  homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Update Homebrew Formula
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          
+          # Calculate SHA256 for each platform
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-linux-x64.tar.gz" | sha256sum | cut -d' ' -f1 > linux_sha
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-macos-x64.zip" | sha256sum | cut -d' ' -f1 > macos_intel_sha
+          curl -sL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-macos-arm64.zip" | sha256sum | cut -d' ' -f1 > macos_arm_sha
+          
+          cat > tsnake.rb << EOF
+          class Tsnake < Formula
+            desc "Classic Snake game for your terminal with world leaderboard"
+            homepage "https://marquesm91.github.io/TerminalSnake/"
+            version "${VERSION}"
+            license "MIT"
+          
+            on_macos do
+              on_intel do
+                url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-macos-x64.zip"
+                sha256 "$(cat macos_intel_sha)"
+              end
+              on_arm do
+                url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-macos-arm64.zip"
+                sha256 "$(cat macos_arm_sha)"
+              end
+            end
+          
+            on_linux do
+              url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/tsnake-linux-x64.tar.gz"
+              sha256 "$(cat linux_sha)"
+            end
+          
+            def install
+              bin.install "tsnake"
+            end
+          
+            test do
+              assert_match "Terminal Snake", shell_output("#{bin}/tsnake --version 2>&1", 0)
+            end
+          end
+          EOF
+          
+          echo "Formula created. To publish:"
+          echo "1. Create a tap repo: homebrew-tsnake"
+          echo "2. Push this formula to: Formula/tsnake.rb"
+          cat tsnake.rb
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-formula
+          path: tsnake.rb
+
+  # ==========================================================================
+  # Snapcraft (Linux - Snap Store)
+  # ==========================================================================
+  snapcraft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create snapcraft.yaml
+        run: |
+          mkdir -p snap
+          cat > snap/snapcraft.yaml << 'EOF'
+          name: tsnake
+          base: core22
+          version: '${{ github.ref_name }}'
+          summary: Classic Snake game for your terminal
+          description: |
+            Terminal Snake is a classic snake game that runs in your terminal.
+            Features include:
+            - World leaderboard with anti-cheat protection
+            - Google Sign-In for authentication
+            - 4 difficulty levels (Easy, Normal, Hard, Insane)
+            - Deterministic replay system
+            
+            Play and compete with players worldwide!
+          
+          grade: stable
+          confinement: strict
+          
+          architectures:
+            - build-on: amd64
+            - build-on: arm64
+          
+          apps:
+            tsnake:
+              command: bin/tsnake
+              plugs:
+                - network
+                - home
+          
+          parts:
+            tsnake:
+              plugin: make
+              source: .
+              build-packages:
+                - g++
+                - libncurses5-dev
+                - libncursesw5-dev
+                - libcurl4-openssl-dev
+                - libssl-dev
+              stage-packages:
+                - libncursesw6
+                - libcurl4
+              override-build: |
+                make clean_arch
+                mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+                cp bin/tsnake_clean $SNAPCRAFT_PART_INSTALL/bin/tsnake
+          EOF
+      
+      - uses: snapcore/action-build@v1
+        id: snapcraft
+      
+      - uses: snapcore/action-publish@v1
+        if: github.event_name == 'release'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAP_STORE_TOKEN }}
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: stable
+
+  # ==========================================================================
+  # Flatpak (Linux - Flathub)
+  # ==========================================================================
+  flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Flatpak manifest
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          
+          cat > io.github.marquesm91.tsnake.yml << EOF
+          app-id: io.github.marquesm91.tsnake
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          command: tsnake
+          
+          finish-args:
+            - --share=network
+            - --persist=.tsnake
+          
+          modules:
+            - name: ncurses
+              buildsystem: autotools
+              config-opts:
+                - --with-shared
+                - --with-termlib
+                - --enable-widec
+              sources:
+                - type: archive
+                  url: https://ftp.gnu.org/gnu/ncurses/ncurses-6.4.tar.gz
+                  sha256: 6931283d9ac87c5073f30b6290c4c75f21632bb4fc3603ac8100812bed248159
+          
+            - name: tsnake
+              buildsystem: simple
+              build-commands:
+                - make clean_arch
+                - install -Dm755 bin/tsnake_clean /app/bin/tsnake
+              sources:
+                - type: git
+                  url: https://github.com/${{ github.repository }}.git
+                  tag: ${GITHUB_REF_NAME}
+          EOF
+          
+          # Desktop entry
+          cat > io.github.marquesm91.tsnake.desktop << EOF
+          [Desktop Entry]
+          Name=Terminal Snake
+          Comment=Classic Snake game for your terminal
+          Exec=tsnake
+          Icon=io.github.marquesm91.tsnake
+          Terminal=true
+          Type=Application
+          Categories=Game;
+          Keywords=snake;game;terminal;retro;
+          EOF
+          
+          # AppStream metadata
+          mkdir -p metainfo
+          cat > metainfo/io.github.marquesm91.tsnake.appdata.xml << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <component type="console-application">
+            <id>io.github.marquesm91.tsnake</id>
+            <name>Terminal Snake</name>
+            <summary>Classic Snake game for your terminal with world leaderboard</summary>
+            <metadata_license>MIT</metadata_license>
+            <project_license>MIT</project_license>
+            <description>
+              <p>Terminal Snake is a classic snake game that runs in your terminal.</p>
+              <p>Features:</p>
+              <ul>
+                <li>World leaderboard with anti-cheat protection</li>
+                <li>Google Sign-In for authentication</li>
+                <li>4 difficulty levels</li>
+                <li>Deterministic replay validation</li>
+              </ul>
+            </description>
+            <url type="homepage">https://marquesm91.github.io/TerminalSnake/</url>
+            <url type="bugtracker">https://github.com/marquesm91/TerminalSnake/issues</url>
+            <categories>
+              <category>Game</category>
+            </categories>
+            <provides>
+              <binary>tsnake</binary>
+            </provides>
+            <releases>
+              <release version="${VERSION}" date="$(date +%Y-%m-%d)"/>
+            </releases>
+          </component>
+          EOF
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-manifest
+          path: |
+            io.github.marquesm91.tsnake.yml
+            io.github.marquesm91.tsnake.desktop
+            metainfo/
+
+  # ==========================================================================
+  # AUR (Arch Linux)
+  # ==========================================================================
+  aur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create PKGBUILD
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          
+          cat > PKGBUILD << EOF
+          # Maintainer: Daniel Marques <marquesm91@gmail.com>
+          pkgname=tsnake
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Classic Snake game for your terminal with world leaderboard"
+          arch=('x86_64' 'aarch64')
+          url="https://github.com/marquesm91/TerminalSnake"
+          license=('MIT')
+          depends=('ncurses' 'curl' 'openssl')
+          makedepends=('gcc' 'make')
+          source=("\$pkgname-\$pkgver.tar.gz::https://github.com/marquesm91/TerminalSnake/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz")
+          sha256sums=('SKIP')
+          
+          build() {
+              cd "TerminalSnake-\$pkgver"
+              make clean_arch
+          }
+          
+          package() {
+              cd "TerminalSnake-\$pkgver"
+              install -Dm755 bin/tsnake_clean "\$pkgdir/usr/bin/tsnake"
+              install -Dm644 LICENSE.md "\$pkgdir/usr/share/licenses/\$pkgname/LICENSE"
+              install -Dm644 README.md "\$pkgdir/usr/share/doc/\$pkgname/README.md"
+          }
+          EOF
+          
+          cat PKGBUILD
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aur-pkgbuild
+          path: PKGBUILD
+
+  # ==========================================================================
+  # Winget (Windows Package Manager)
+  # ==========================================================================
+  winget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Winget manifest
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          
+          mkdir -p manifests/m/marquesm91/tsnake/${VERSION}
+          
+          cat > manifests/m/marquesm91/tsnake/${VERSION}/marquesm91.tsnake.yaml << EOF
+          PackageIdentifier: marquesm91.tsnake
+          PackageVersion: ${VERSION}
+          PackageLocale: en-US
+          Publisher: Daniel Marques
+          PublisherUrl: https://github.com/marquesm91
+          PackageName: Terminal Snake
+          PackageUrl: https://github.com/marquesm91/TerminalSnake
+          License: MIT
+          ShortDescription: Classic Snake game for your terminal with world leaderboard
+          Description: |
+            Terminal Snake is a classic snake game that runs in your terminal.
+            Features world leaderboard with anti-cheat, Google Sign-In, and 4 difficulty levels.
+          Tags:
+            - game
+            - snake
+            - terminal
+            - retro
+            - cli
+          Installers:
+            - Architecture: x64
+              InstallerType: zip
+              InstallerUrl: https://github.com/marquesm91/TerminalSnake/releases/download/${GITHUB_REF_NAME}/tsnake-windows-x64.zip
+          ManifestType: singleton
+          ManifestVersion: 1.4.0
+          EOF
+          
+          cat manifests/m/marquesm91/tsnake/${VERSION}/marquesm91.tsnake.yaml
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifest
+          path: manifests/
+
+  # ==========================================================================
+  # Chocolatey (Windows)
+  # ==========================================================================
+  chocolatey:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Chocolatey package
+        shell: pwsh
+        run: |
+          $VERSION = "${{ github.ref_name }}".TrimStart('v')
+          
+          New-Item -ItemType Directory -Force -Path choco/tools
+          
+          @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+            <metadata>
+              <id>tsnake</id>
+              <version>$VERSION</version>
+              <title>Terminal Snake</title>
+              <authors>Daniel Marques</authors>
+              <owners>marquesm91</owners>
+              <projectUrl>https://github.com/marquesm91/TerminalSnake</projectUrl>
+              <licenseUrl>https://github.com/marquesm91/TerminalSnake/blob/main/LICENSE.md</licenseUrl>
+              <requireLicenseAcceptance>false</requireLicenseAcceptance>
+              <description>Classic Snake game for your terminal with world leaderboard, Google Sign-In, and anti-cheat protection.</description>
+              <summary>Terminal Snake - Play and compete worldwide!</summary>
+              <tags>game snake terminal retro cli</tags>
+            </metadata>
+          </package>
+          "@ | Out-File -FilePath choco/tsnake.nuspec -Encoding UTF8
+          
+          @"
+          `$ErrorActionPreference = 'Stop'
+          `$toolsDir = Split-Path -Parent `$MyInvocation.MyCommand.Definition
+          `$url = 'https://github.com/marquesm91/TerminalSnake/releases/download/${{ github.ref_name }}/tsnake-windows-x64.zip'
+          
+          Install-ChocolateyZipPackage -PackageName 'tsnake' -Url `$url -UnzipLocation `$toolsDir
+          
+          `$binPath = Join-Path `$toolsDir 'tsnake.exe'
+          Install-BinFile -Name 'tsnake' -Path `$binPath
+          "@ | Out-File -FilePath choco/tools/chocolateyinstall.ps1 -Encoding UTF8
+      
+      - name: Pack and Publish to Chocolatey
+        if: github.event_name == 'release'
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        shell: pwsh
+        run: |
+          cd choco
+          choco pack
+          
+          $package = Get-ChildItem *.nupkg | Select-Object -First 1
+          if ($package) {
+            Write-Host "Pushing package: $($package.Name)"
+            choco push $package.FullName --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+          } else {
+            Write-Error "No .nupkg file found after packing."
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chocolatey-package
+          path: choco/*.nupkg

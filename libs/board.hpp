@@ -232,6 +232,12 @@ public:
         attroff(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
     }
 
+    void printObstacle(const Point &p) {
+        attron(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
+        mvaddch(p.getX(), p.getY(), ACS_CKBOARD); // Use checkerboard pattern for obstacles
+        attroff(COLOR_PAIR(COLOR_BORDER) | A_BOLD);
+    }
+
 };
 
 #endif
