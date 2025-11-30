@@ -16,9 +16,11 @@ class Game{
     Body *body;
     Food *food;
     Clock clock;
+    int difficultyLevel;
     int currentDelay;
     int pointsSinceLastSpeedUp;
     int pointsSinceLastObstacle;
+    char keyStroke;
 
 public:
 
@@ -28,7 +30,7 @@ public:
         body = new Body();
         food = new Food();
 
-        this->level = level;
+        this->difficultyLevel = level;
         this->currentDelay = DELAY;
         this->pointsSinceLastSpeedUp = 0;
         this->pointsSinceLastObstacle = 0;
@@ -37,7 +39,7 @@ public:
         this->validateFood();
         
         // print Score, Size and Food initial position
-        board->setPrintScore(level);
+        board->setPrintScore(difficultyLevel);
         board->setPrintSize(*body);
         board->setPrintFood(*food);
     
@@ -47,6 +49,8 @@ public:
     
     int getScore() const { return board->getScore(); }
     int getSnakeSize() const { return body->getSize(); }
+    int getCurrentDelay() const { return currentDelay; }
+    int getPointsSinceLastSpeedUp() const { return pointsSinceLastSpeedUp; }
 
     void validateFood() {
        food->getFood();
@@ -90,7 +94,7 @@ public:
         this->validateFood();
 
         // print Score, Size and Food initial position
-        board->setPrintScore(level);
+        board->setPrintScore(difficultyLevel);
         board->setPrintSize(*body);
         board->setPrintFood(*food);
     }
@@ -119,12 +123,12 @@ public:
               board->setPrintSnake(*body);
 
               board->setPrintFood(*food);
-              board->setPrintScore(level);
+              board->setPrintScore(difficultyLevel);
               board->setPrintSize(*body);
               
               // Progressive Difficulty Logic
-              pointsSinceLastSpeedUp += level;
-              pointsSinceLastObstacle += level;
+              pointsSinceLastSpeedUp += difficultyLevel;
+              pointsSinceLastObstacle += difficultyLevel;
               
               // Increase speed every 50 points
               if (pointsSinceLastSpeedUp >= 50) {
