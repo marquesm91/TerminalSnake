@@ -33,6 +33,11 @@ jobs:
           emcc --version
           which emcc
       
+      - name: Run WASM Tests
+        run: |
+          emcc tests/test_wasm_collision.cpp -o tests/test_wasm_collision.js
+          node tests/test_wasm_collision.js
+
       - name: Build WASM
         run: |
           cd web
